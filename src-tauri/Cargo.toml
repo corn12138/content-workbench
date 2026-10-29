@@ -1,0 +1,54 @@
+[package]
+name = "content-workbench-tauri"
+version = "0.1.0"
+edition = "2021"
+license = "Apache-2.0"
+repository = "https://github.com/corn12138/content-workbench"
+default-run = "content-workbench-tauri"
+
+[features]
+probes = []
+
+[[bin]]
+name = "store-probe"
+path = "src/bin/store-probe.rs"
+required-features = ["probes"]
+
+[[bin]]
+name = "keychain-probe"
+path = "src/bin/keychain-probe.rs"
+required-features = ["probes"]
+
+[lib]
+name = "workbench_tauri"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+tauri-plugin-dialog = "2"
+tauri-plugin-opener = "2"
+tauri-plugin-clipboard-manager = "2"
+tauri-plugin-single-instance = "2"
+rusqlite = { version = "0.38", features = ["bundled", "backup"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+chrono = { version = "0.4", features = ["serde", "clock"] }
+uuid = { version = "1", features = ["v4", "serde"] }
+sha2 = "0.10"
+url = "2"
+regex = "1"
+
+[target.'cfg(target_os = "macos")'.dependencies]
+security-framework = "3"
+
+[dev-dependencies]
+tempfile = "3"
+
+[profile.release]
+codegen-units = 1
+lto = true
+opt-level = "s"
+strip = true

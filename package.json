@@ -1,0 +1,83 @@
+{
+  "name": "content-workbench",
+  "version": "0.1.0",
+  "private": true,
+  "description": "A local desktop workspace for writing, publishing and reading, without AI.",
+  "author": "Content Workbench",
+  "type": "module",
+  "main": "dist/desktop/main.cjs",
+  "scripts": {
+    "dev:frontend": "vite --host 127.0.0.1",
+    "build:frontend": "tsc --noEmit && vite build",
+    "dev:tauri": "tauri dev",
+    "package:tauri": "npm run package:mac",
+    "test:rust": "cargo test --manifest-path src-tauri/Cargo.toml",
+    "test:parity": "node --import tsx scripts/compare-stores.mjs",
+    "dev": "tauri dev",
+    "build": "tauri build --no-bundle",
+    "start": "open release/tauri-macos/内容工作台.app",
+    "dev:electron": "node scripts/dev.mjs",
+    "build:electron": "npm run build:frontend && node scripts/build-desktop.mjs",
+    "start:electron": "electron .",
+    "package:electron": "npm run build:electron && electron-builder --mac --dir",
+    "smoke:tauri": "tauri build --debug --bundles app && node scripts/smoke-tauri.mjs --packaged \"src-tauri/target/debug/bundle/macos/内容工作台 Tauri.app/Contents/MacOS/content-workbench-tauri\"",
+    "typecheck": "tsc --noEmit",
+    "test": "node --import tsx --test tests/*.test.ts",
+    "package:mac": "tauri build --bundles app && node scripts/stage-tauri.mjs",
+    "smoke:desktop": "node scripts/smoke-desktop.mjs",
+    "release:mac": "node scripts/release-macos.mjs",
+    "audit:source": "node scripts/audit-public-source.mjs",
+    "licenses": "node scripts/collect-licenses.mjs"
+  },
+  "dependencies": {
+    "@tauri-apps/api": "2.12.4",
+    "lucide-react": "^0.468.0",
+    "react": "19.3.1",
+    "react-dom": "19.3.1",
+    "react-markdown": "^10.1.0",
+    "remark-gfm": "^4.0.1",
+    "zod": "^4.1.13"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "2.12.4",
+    "@types/node": "^24.10.0",
+    "@types/react": "^19.2.0",
+    "@types/react-dom": "^19.2.0",
+    "@vitejs/plugin-react": "^6.0.0",
+    "electron": "45.1.0",
+    "electron-builder": "26.18.0",
+    "esbuild": "^0.28.2",
+    "prettier": "3.9.10",
+    "tsx": "^4.20.6",
+    "typescript": "~5.9.3",
+    "vite": "8.3.5"
+  },
+  "build": {
+    "appId": "local.contentworkbench.desktop",
+    "productName": "内容工作台",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**/*",
+      "package.json"
+    ],
+    "asar": true,
+    "mac": {
+      "target": [
+        "dir"
+      ],
+      "category": "public.app-category.productivity",
+      "identity": null
+    }
+  },
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/corn12138/content-workbench.git"
+  },
+  "homepage": "https://github.com/corn12138/content-workbench",
+  "bugs": {
+    "url": "https://github.com/corn12138/content-workbench/issues"
+  }
+}
