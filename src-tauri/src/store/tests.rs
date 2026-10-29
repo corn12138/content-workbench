@@ -271,7 +271,7 @@ fn future_database_is_rejected_without_changing_schema() {
     let directory = tempfile::tempdir().unwrap();
     let path = directory.path().join("workbench.sqlite");
     let connection = rusqlite::Connection::open(&path).unwrap();
-    connection.execute_batch("PRAGMA user_version=2; CREATE TABLE future_only(value TEXT); INSERT INTO future_only VALUES('保留');").unwrap();
+    connection.execute_batch("PRAGMA user_version=3; CREATE TABLE future_only(value TEXT); INSERT INTO future_only VALUES('保留');").unwrap();
     drop(connection);
     assert!(WorkbenchStore::open(directory.path().into()).is_err());
     let connection = rusqlite::Connection::open(path).unwrap();
@@ -281,6 +281,6 @@ fn future_database_is_rejected_without_changing_schema() {
     let value: String = connection
         .query_row("SELECT value FROM future_only", [], |r| r.get(0))
         .unwrap();
-    assert_eq!(version, 2);
+    assert_eq!(version, 3);
     assert_eq!(value, "保留");
 }

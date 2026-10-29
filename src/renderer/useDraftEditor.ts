@@ -69,5 +69,5 @@ export function useDraftEditor(
     if (timer.current) clearTimeout(timer.current);
     timer.current = setTimeout(() => void flush().catch(() => undefined), 600);
   };
-  return { fields, update, status, error, flush, current: () => saved.current };
+  return { fields, update, status, error, flush, current: () => saved.current, latest: () => latest.current };
 }

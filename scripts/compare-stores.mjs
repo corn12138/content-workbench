@@ -230,11 +230,11 @@ try {
   await mkdir(copyDir);
   await copyFile(sourceDatabase, join(copyDir, "workbench.sqlite"));
   const nativeOutput = join(root, "rust-native-read.json");
-  currentCheck = "Rust opens copied Electron SQLite without conversion";
+  currentCheck = "Rust upgrades a copied Electron SQLite while preserving core data";
   probe(["--inspect-db", copyDir, "--output", nativeOutput]);
   assert.deepEqual(canonical(await readBackup(nativeOutput)), baseline);
   checks.push({
-    name: "Rust opens copied Electron SQLite without conversion",
+    name: "Rust upgrades a copied Electron SQLite while preserving core data",
     passed: true,
   });
 
@@ -249,43 +249,9 @@ try {
     passed: true,
   });
 
-  currentCheck = "Electron reopens Rust-written SQLite with matching data";
-  const reopened = new WorkbenchStore(rustDir);
-  try {
-    // These lookups exercise derived SQLite keys that a JSON payload comparison cannot verify.
-    const activeDraft = baseline.drafts.find((draft) => !draft.archived);
-    const imported = reopened.importMarkdown("existing.md", activeDraft.body);
-    assert.equal(imported.duplicate, true);
-    assert.equal(imported.draft.id, activeDraft.id);
-    const publication = baseline.publications.find(
-      (item) => item.platform === "x",
-    );
-    assert.equal(
-      reopened.recordPublication(
-        publication.draftId,
-        publication.draftRevision,
-        publication.url.replace("/fixture/", "/new_handle/"),
-      ).id,
-      publication.id,
-    );
-    const reading = baseline.readings.find((item) => item.read);
-    assert.deepEqual(
-      reopened.saveReading({
-        url: reading.url,
-        title: "",
-        note: "",
-        read: false,
-      }),
-      reading,
-    );
-    assert.deepEqual(canonical(reopened.exportBackup()), baseline);
-  } finally {
-    reopened.close();
-  }
-  checks.push({
-    name: "Electron reopens Rust-written SQLite with matching data",
-    passed: true,
-  });
+  currentCheck = "Electron rejects the newer library schema without altering it";
+  assert.throws(() => new WorkbenchStore(rustDir));
+  checks.push({ name: currentCheck, passed: true });
 
   currentCheck =
     "Rust v1 export restores into Electron with exact IDs and references";

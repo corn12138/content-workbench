@@ -1,11 +1,12 @@
 import { ArrowUpRight, Check, FilePlus2, RefreshCw } from "lucide-react";
-import type { Reading } from "../../shared/contracts";
+import type { Reading, FeedItem } from "../../shared/contracts";
 import { api } from "../api";
 import { sourceName } from "./sourceName";
 import type { ReadingSaveState } from "./useReadingEditor";
 
 interface ReadingDetailProps {
   record: Reading;
+  feedItem?: FeedItem;
   busy: boolean;
   saveState: ReadingSaveState;
   saveError: string;
@@ -17,6 +18,7 @@ interface ReadingDetailProps {
 
 export function ReadingDetail({
   record,
+  feedItem,
   busy,
   saveState,
   saveError,
@@ -66,6 +68,21 @@ export function ReadingDetail({
           </button>
         </div>
       </div>
+      {feedItem && (
+        <section className="reading-excerpt" aria-label="订阅内容">
+          <div className="eyebrow">
+            订阅内容
+            {feedItem.publishedAt &&
+              ` · ${new Date(feedItem.publishedAt).toLocaleDateString()}`}
+          </div>
+          <p>{feedItem.summary || "订阅未提供正文，请点击“打开原文”阅读。"}</p>
+          {feedItem.summary && (
+            <span className="muted">
+              内容由订阅源提供，完整内容以原文为准。
+            </span>
+          )}
+        </section>
+      )}
       <div className="reading-note-heading">
         <label htmlFor="reading-note">我的笔记</label>
         <span

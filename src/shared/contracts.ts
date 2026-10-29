@@ -59,7 +59,36 @@ export interface AppInfo {
   platform: string;
   mode: "desktop";
 }
+export interface Feed {
+  id: string;
+  enabled: boolean;
+  url: string;
+  title: string;
+  checkedAt: string | null;
+  etag: string | null;
+  lastModified: string | null;
+  error: string | null;
+}
+export interface FeedItem {
+  feedId: string;
+  key: string;
+  readingId: string | null;
+  title: string;
+  url: string;
+  summary: string;
+  publishedAt: string | null;
+}
+export interface Library {
+  feeds: Feed[];
+  items: FeedItem[];
+}
 export interface WorkbenchAPI {
+  insertImage?(): Promise<string | null>;
+  assetData?(name: string): Promise<string>;
+  library?(): Promise<Library>;
+  addFeed?(url: string): Promise<Feed>;
+  refreshFeed?(id: string): Promise<Feed>;
+  unsubscribe?(id: string): Promise<void>;
   snapshot(): Promise<Snapshot>;
   saveDraft(input: DraftInput): Promise<Draft>;
   importMarkdown(): Promise<{

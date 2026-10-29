@@ -34,7 +34,11 @@ export function SettingsView({
       if (done) {
         if (kind === "restore") await onRestored();
         notify(
-          kind === "backup" ? "全部文字资料和历史版本已备份" : "资料已恢复",
+          kind === "backup"
+            ? api.library
+              ? "全部资料、图片和订阅已备份"
+              : "全部文字资料和历史版本已备份"
+            : "资料已恢复",
         );
       }
     } catch (error) {
@@ -77,7 +81,9 @@ export function SettingsView({
           </button>
         </div>
         <p className="muted small">
-          当前版本备份文字资料。图片资源、平台凭据尚未接入。
+          {api.library
+            ? "一个备份文件带走文字、历史版本、已保存的图片、订阅和阅读笔记。恢复前会自动保留完整副本。"
+            : "Electron 回退版备份文字资料，不含图片和订阅。"}
         </p>
         <details>
           <summary>查看数据位置</summary>
@@ -105,7 +111,9 @@ export function SettingsView({
         <h2>运行方式</h2>
         <p>关闭窗口会退出应用，退出前先保存修改。当前没有后台采集任务。</p>
         <p className="muted small">
-          后续加入订阅和平台采集后，提供关闭窗口时继续运行的选项。
+          {api.library
+            ? "订阅仅在添加或点击“更新订阅”时联网。关闭应用后不会继续更新。"
+            : "订阅功能请使用 Tauri 版。"}
         </p>
       </section>
       <footer className="settings-footer">

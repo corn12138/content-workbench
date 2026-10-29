@@ -1,11 +1,13 @@
-import { useState, type FormEvent } from "react";
+import { useMemo, useState, type FormEvent } from "react";
 import { BookOpen, Link2, Plus } from "lucide-react";
-import type { Draft, Reading } from "../shared/contracts";
+import type { Draft, Reading, Library } from "../shared/contracts";
 import { api } from "./api";
 import { ReadingAddForm } from "./reading/ReadingAddForm";
 import { ReadingDetail } from "./reading/ReadingDetail";
 import { ReadingList, type ReadingFilter } from "./reading/ReadingList";
 import { useReadingEditor } from "./reading/useReadingEditor";
+import { orderReadings } from "./reading/orderReadings";
+import { FeedPanel } from "./reading/FeedPanel";
 import "./reading.css";
 
 interface ReadingViewProps {
@@ -17,7 +19,16 @@ interface ReadingViewProps {
 }
 
 export function ReadingView(props: ReadingViewProps) {
-  const editor = useReadingEditor(props);
+  const [library, setLibrary] = useState<Library>({ feeds: [], items: [] });
+  const [libraryLoaded, setLibraryLoaded] = useState(!api.library);
+  const readings = useMemo(
+    () => orderReadings(props.items, library.items),
+    [props.items, library.items],
+  );
+  const editor = useReadingEditor({
+    ...props,
+    items: libraryLoaded ? readings : [],
+  });
   const [filter, setFilter] = useState<ReadingFilter>("all");
   const [adding, setAdding] = useState(false);
   const [url, setUrl] = useState("");
@@ -116,6 +127,16 @@ export function ReadingView(props: ReadingViewProps) {
           添加链接
         </button>
       </header>
+      {api.library && (
+        <FeedPanel
+          library={library}
+          onLibrary={(next) => {
+            setLibrary(next);
+            setLibraryLoaded(true);
+          }}
+          onRefresh={props.onRefresh}
+        />
+      )}
       {adding && (
         <ReadingAddForm
           url={url}
@@ -150,7 +171,7 @@ export function ReadingView(props: ReadingViewProps) {
       ) : (
         <div className="split-view reading-split">
           <ReadingList
-            items={props.items}
+            items={readings}
             selectedId={editor.record?.id}
             filter={filter}
             setFilter={setFilter}
@@ -160,6 +181,9 @@ export function ReadingView(props: ReadingViewProps) {
           {editor.record && (
             <ReadingDetail
               record={editor.record}
+              feedItem={library.items.find(
+                (item) => item.readingId === editor.record?.id,
+              )}
               busy={busy}
               saveState={editor.saveState}
               saveError={editor.saveError}

@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Check, ChevronDown, History, Send, X } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { Check, ChevronDown, History, ImagePlus, Send, X } from "lucide-react";
 import type { Draft, Revision } from "../shared/contracts";
 import { api, errorMessage } from "./api";
 import { Markdown } from "./Markdown";
@@ -25,6 +25,43 @@ export function DraftEditor({
 }: Props) {
   const editor = useDraftEditor(draft, onSaved, registerFlush);
   const [preview, setPreview] = useState(false);
+  const textarea = useRef<HTMLTextAreaElement>(null);
+  const imagePending = useRef<Promise<void> | null>(null);
+  const [imageBusy, setImageBusy] = useState(false);
+  useEffect(() => {
+    // Navigation and Quit must wait for the selected image to become part of the saved draft.
+    registerFlush(async () => {
+      await imagePending.current;
+      await editor.flush();
+    });
+  }, [registerFlush, editor.flush]);
+  const insertImage = () => {
+    if (!api.insertImage || imagePending.current) return;
+    const start = textarea.current?.selectionStart;
+    const end = textarea.current?.selectionEnd;
+    setImageBusy(true);
+    const operation = (async () => {
+      await editor.flush();
+      const reference = await api.insertImage!();
+      if (!reference) return;
+      const body = editor.latest().body;
+      const from = Math.min(start ?? body.length, body.length);
+      const to = Math.min(end ?? from, body.length);
+      editor.update({
+        body: `${body.slice(0, from)}\n![图片](${reference})\n${body.slice(to)}`,
+      });
+      setPreview(false);
+      await editor.flush();
+    })()
+      .catch((error) => {
+        notify(errorMessage(error));
+      })
+      .finally(() => {
+        imagePending.current = null;
+        setImageBusy(false);
+      });
+    imagePending.current = operation;
+  };
   const [history, setHistory] = useState<Revision[] | null>(null);
   const [selectedRevision, setSelectedRevision] = useState<Revision | null>(
     null,
@@ -64,11 +101,15 @@ export function DraftEditor({
                 onClick={() =>
                   void run(async () => {
                     if (await api.exportDraft(draft.id))
-                      notify("已导出 Markdown");
+                      notify(
+                        api.insertImage
+                          ? "文章已导出，已保存的图片会一起带走"
+                          : "已导出 Markdown",
+                      );
                   })
                 }
               >
-                导出 Markdown
+                导出文章
               </button>
               <button onClick={() => void run(() => onArchive(draft.id))}>
                 归档稿件
@@ -129,6 +170,16 @@ export function DraftEditor({
         >
           预览
         </button>
+        {api.insertImage && (
+          <button
+            className="insert-image"
+            onClick={insertImage}
+            disabled={imageBusy}
+          >
+            <ImagePlus size={15} />
+            {imageBusy ? "正在保存图片…" : "插入图片"}
+          </button>
+        )}
         <span>支持 Markdown</span>
       </div>
       {preview ? (
@@ -137,6 +188,7 @@ export function DraftEditor({
         </div>
       ) : (
         <textarea
+          ref={textarea}
           className="body-editor"
           aria-label="文章正文"
           placeholder="从这里开始写，或者粘贴在 Codex 中完成的内容…"

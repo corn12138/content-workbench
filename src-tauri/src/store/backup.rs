@@ -69,7 +69,7 @@ impl WorkbenchStore {
         self.transaction(|store| store.replace_contents(backup))
     }
 
-    fn replace_contents(&mut self, backup: Backup) -> Result<(), String> {
+    pub(super) fn replace_contents(&mut self, backup: Backup) -> Result<(), String> {
         self.connection.execute_batch("DELETE FROM publications; DELETE FROM revisions; DELETE FROM drafts; DELETE FROM readings;").map_err(|e| e.to_string())?;
         for draft in backup.drafts {
             self.connection

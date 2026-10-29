@@ -33,8 +33,12 @@ export function App() {
   const registerFlush = useCallback((handler: () => Promise<void>) => {
     flush.current = handler;
   }, []);
+  const refreshSequence = useRef(0);
   const refresh = useCallback(async () => {
-    setData(await api.snapshot());
+    const sequence = ++refreshSequence.current;
+    const next = await api.snapshot();
+    // A slower list read cannot replace the newer snapshot loaded after a save or restore.
+    if (sequence === refreshSequence.current) setData(next);
   }, []);
   const load = useCallback(async () => {
     setLoadError("");

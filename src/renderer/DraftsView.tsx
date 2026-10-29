@@ -189,7 +189,7 @@ export function DraftsView({
             <button className="text-button" disabled={busy} onClick={onCreate}>
               也可以新建草稿
             </button>
-            <small>当前版本导入文字，图片请在发布平台补充。</small>
+            <small>导入后检查预览，发布时仍需在平台上传图片。</small>
           </div>
         )}
       </div>

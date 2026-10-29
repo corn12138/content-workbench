@@ -4,6 +4,16 @@ import { dirname, join, resolve } from "node:path";
 
 const root = resolve(import.meta.dirname, "..");
 const output = join(root, "third-party");
+const cachedLicenses = new Map();
+try {
+  const previous = JSON.parse(await readFile(join(output, "inventory.json"), "utf8"));
+  for (const pkg of previous.filter((pkg) => pkg.licenseSource)) {
+    for (const name of await readdir(join(output, pkg.licenseDirectory))) {
+      if (licenseFile(name)) cachedLicenses.set(pkg.licenseSource, await readFile(join(output, pkg.licenseDirectory, name), "utf8"));
+    }
+  }
+} catch (error) { if (error.code !== "ENOENT") throw error; }
+function licenseFile(name) { return /^(licen[sc]e|copying|copyright|notice|unlicense)([._-]|$)/i.test(name); }
 await rm(output, { recursive: true, force: true });
 await mkdir(join(output, "licenses"), { recursive: true });
 await mkdir(join(output, "sources"), { recursive: true });
@@ -14,6 +24,8 @@ const missing = [];
 const licenseName = /^(licen[sc]e|copying|copyright|notice|unlicense)([._-]|$)/i;
 
 async function fetchText(url) {
+  // Exact upstream revision URLs let unchanged dependency notices regenerate offline.
+  if (cachedLicenses.has(url)) return cachedLicenses.get(url);
   const response = await fetch(url, { signal: AbortSignal.timeout(30_000) });
   if (!response.ok) throw new Error(`License fetch failed: ${response.status} ${url}`);
   return response.text();

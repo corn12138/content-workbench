@@ -41,7 +41,8 @@
   await click("新建");
   await wait(editor, "draft editor");
   fill('[aria-label="文章标题"]', "Tauri 本地测试样本 · 一次重构的记录");
-  fill('[aria-label="文章正文"]', "## 从一个小问题开始\n\n仅用于本机验收的文章。\n\n```ts\nconst result = await saveDraft(content);\n```\n\n<script>window.__unsafeExecuted = true</script>");
+  const imageReference = await step("library_fixture");
+  fill('[aria-label="文章正文"]', "## 从一个小问题开始\n\n仅用于本机验收的文章。\n\n```ts\nconst result = await saveDraft(content);\n```\n\n<script>window.__unsafeExecuted = true</script>\n\n![Fixture](" + imageReference + ")");
   await click("反馈");
   await wait(() => document.querySelector(".feedback-page"), "feedback after edit");
   let snapshot = await api.snapshot();
@@ -51,6 +52,7 @@
   await click("预览");
   await wait(() => document.querySelector(".markdown"), "Markdown preview");
   assert(!window.__unsafeExecuted && !document.querySelector(".markdown script"), "Markdown allowed script execution");
+  await wait(() => document.querySelector(".markdown img")?.naturalWidth === 4, "native stored image preview");
   await click("准备发布");
   await wait(() => document.querySelector("dialog[open]"), "publication preview");
   const clipboardAvailable = await step("clipboard_available");
@@ -67,11 +69,15 @@
   assert(snapshot.publications[0]?.confirmation === "manual", "Manual publication provenance lost");
   await click("阅读");
   await wait(() => document.querySelector(".reading-workspace"), "reading workspace");
+  await wait(() => document.querySelector(".reading-excerpt")?.textContent.includes("Offline subscription content"), "RSS cached content");
+  let blocked = false;
+  try { await api.addFeed("http://127.0.0.1/private"); } catch { blocked = true; }
+  assert(blocked, "Native feed command allowed a private address");
   await click("添加链接");
   fill("#reading-url", "https://example.com/engineering-notes");
   fill("#reading-title", "Tauri 测试资料 · 工程实践笔记");
   await click("保存链接");
-  await wait(() => document.querySelector("#reading-note"), "saved reading");
+  await wait(() => document.querySelector(".reading-url")?.textContent === "https://example.com/engineering-notes" && !document.querySelector("#reading-note")?.disabled, "saved reading selected");
   fill("#reading-note", "我的收获：先把保存失败和重试做好，再增加自动化。");
   await click("反馈");
   await wait(() => document.querySelector(".feedback-page"), "feedback after note");
@@ -86,8 +92,9 @@
   await wait(editor, "draft from reading note");
   snapshot = await api.snapshot();
   assert(snapshot.drafts.some((draft) => draft.body.includes("来源：https://example.com/engineering-notes")), "Converted note lost attribution");
-  await step("complete", { rendererIsolation: true, autosaveOnNavigation: true, markdownSanitized: true, nativeClipboard: clipboardAvailable, nativeClipboardSkipped: !clipboardAvailable, manualPublicationRecorded: true, readingNoteSaved: true, readingToDraft: true, narrowViewport: true });
+  await step("full_backup_roundtrip");
+  await step("complete", { storedImageRendered: true, rssContentRendered: true, privateFeedBlocked: true, fullBackupRoundtrip: true, rendererIsolation: true, autosaveOnNavigation: true, markdownSanitized: true, nativeClipboard: clipboardAvailable, nativeClipboardSkipped: !clipboardAvailable, manualPublicationRecorded: true, readingNoteSaved: true, readingToDraft: true, narrowViewport: true });
   // Closing immediately exercises the pending-save barrier instead of waiting for debounce.
   fill('[aria-label="文章标题"]', "Tauri 测试样本 · 关闭时保存");
   await step("close");
-})().catch((error) => window.__TAURI_INTERNALS__.invoke("comparison_step", { action: "fail", details: String(error?.stack || error) }));
+})().catch((error) => window.__TAURI_INTERNALS__.invoke("comparison_step", { action: "fail", details: `${error?.message || error}\n${error?.stack || ""}` }));

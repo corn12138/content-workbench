@@ -179,3 +179,5 @@ h2 { font-size: 21px; font-weight: 580; letter-spacing: -.4px; }
   .detail-header .toolbar { gap: 2px; }
   .detail-header .button { padding: 8px; font-size: 11px; }
 }
+
+.markdown .local-image { display: block; max-width: 100%; max-height: 640px; object-fit: contain; border-radius: 6px; margin: 12px 0; }
