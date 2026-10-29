@@ -7,6 +7,7 @@ import { ReadingDetail } from "./reading/ReadingDetail";
 import { ReadingList, type ReadingFilter } from "./reading/ReadingList";
 import { useReadingEditor } from "./reading/useReadingEditor";
 import { orderReadings } from "./reading/orderReadings";
+import { readingIndex } from "./reading/filterReadings";
 import { FeedPanel } from "./reading/FeedPanel";
 import "./reading.css";
 
@@ -20,6 +21,10 @@ interface ReadingViewProps {
 
 export function ReadingView(props: ReadingViewProps) {
   const [library, setLibrary] = useState<Library>({ feeds: [], items: [] });
+  const previewIndex = useMemo(
+    () => readingIndex(library.items),
+    [library.items],
+  );
   const [libraryLoaded, setLibraryLoaded] = useState(!api.library);
   const readings = useMemo(
     () => orderReadings(props.items, library.items),
@@ -116,7 +121,7 @@ export function ReadingView(props: ReadingViewProps) {
         <div>
           <p className="eyebrow">从阅读到自己的想法</p>
           <h1>阅读</h1>
-          <p className="muted">把有用的链接留下，把想法记在旁边。</p>
+          <p className="muted">汇集订阅更新，预览内容，把想法记在旁边。</p>
         </div>
         <button
           className="button primary"
@@ -172,6 +177,7 @@ export function ReadingView(props: ReadingViewProps) {
         <div className="split-view reading-split">
           <ReadingList
             items={readings}
+            library={library}
             selectedId={editor.record?.id}
             filter={filter}
             setFilter={setFilter}
@@ -181,9 +187,7 @@ export function ReadingView(props: ReadingViewProps) {
           {editor.record && (
             <ReadingDetail
               record={editor.record}
-              feedItem={library.items.find(
-                (item) => item.readingId === editor.record?.id,
-              )}
+              feedItem={previewIndex.get(editor.record.id)}
               busy={busy}
               saveState={editor.saveState}
               saveError={editor.saveError}

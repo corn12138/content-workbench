@@ -52,6 +52,29 @@ impl WorkbenchStore {
         Ok(publication)
     }
 
+    pub fn record_api_publication(
+        &mut self,
+        draft_id: &str,
+        revision: i64,
+        url: &str,
+    ) -> Result<Publication, String> {
+        self.transaction(|store| {
+            let mut publication = store.record_publication(draft_id, revision, url)?;
+            publication.confirmation = "api".into();
+            store
+                .connection
+                .execute(
+                    "UPDATE publications SET payload=? WHERE id=?",
+                    params![
+                        serde_json::to_string(&publication).map_err(|e| e.to_string())?,
+                        publication.id
+                    ],
+                )
+                .map_err(|e| e.to_string())?;
+            Ok(publication)
+        })
+    }
+
     pub fn save_reading(&mut self, input: ReadingInput) -> Result<Reading, String> {
         if !validation::schema_within(&input.url, 4096)
             || !validation::schema_within(&input.title, 200)

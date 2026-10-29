@@ -30,7 +30,7 @@ export interface Publication {
   platform: "juejin" | "x";
   url: string;
   confirmedAt: string;
-  confirmation: "manual";
+  confirmation: "manual" | "api";
 }
 export interface Reading {
   id: string;
@@ -82,7 +82,30 @@ export interface Library {
   feeds: Feed[];
   items: FeedItem[];
 }
+export interface XAccount {
+  connected: boolean;
+  username: string | null;
+  clientId: string;
+  callback: string;
+}
+export interface PublishReceipt {
+  url: string;
+  recorded: boolean;
+  warning: string | null;
+}
 export interface WorkbenchAPI {
+  xAccount?(): Promise<XAccount>;
+  xConnect?(clientId: string): Promise<XAccount>;
+  xCancel?(): Promise<void>;
+  xDisconnect?(): Promise<string>;
+  xPublish?(input: {
+    draftId: string;
+    revision: number;
+    text: string;
+    acknowledged: boolean;
+    expectedUsername: string;
+  }): Promise<PublishReceipt>;
+
   insertImage?(): Promise<string | null>;
   assetData?(name: string): Promise<string>;
   library?(): Promise<Library>;

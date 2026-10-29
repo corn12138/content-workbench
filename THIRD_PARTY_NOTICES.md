@@ -8,4 +8,4 @@ See third-party/inventory.json for exact versions and source URLs, and third-par
 
 The application's document icon is generated from assets/icon.svg. Lucide icons retain their upstream ISC license. Electron is a source-level fallback; this Tauri release does not redistribute the Electron runtime.
 
-Packages recorded: 457. Regenerate with npm ci followed by npm run licenses on macOS arm64.
+Packages recorded: 462. Regenerate with npm ci followed by npm run licenses on macOS arm64.

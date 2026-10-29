@@ -4,7 +4,7 @@
 
 A local-first desktop workspace for developer writing, assisted publishing and reading notes. Built with Tauri 2, Rust and React. No AI service or account is required for the local workflow.
 
-**0.2.0 开发者预览版**，支持图片随稿保存、完整备份和 RSS 阅读。已验证平台为 macOS Apple Silicon；Windows、Linux 和 Intel Mac 尚未验收。
+**最新已发布版本为 0.2.0**，支持图片随稿保存、完整备份和 RSS 阅读。当前开发分支为 **0.3.0-dev.1**，新增 X 授权/发布配置入口与聚合预览；真实 X 账号连通尚待开发者应用配置后验收，见[配置与能力边界](docs/publishing-and-preview.md)。已验证平台为 macOS Apple Silicon；Windows、Linux 和 Intel Mac 尚未验收。
 
 ## 下载与开始
 
@@ -27,7 +27,9 @@ A local-first desktop workspace for developer writing, assisted publishing and r
 - SQLite 本地存储；单个 `.cwb` 备份包含正文、历史、图片、发布记录、订阅和笔记，兼容导入旧 JSON 文字备份。
 - 有本地图片的文章导出为 ZIP（`article.md` + `assets/`），解压后可重新导入；纯文字文章仍导出 Markdown。
 
-**尚未实现**：平台自动上传图片、X 自动发布、评论及浏览量同步、后台采集、云同步和自动更新。发布时需在平台上传图片。关闭窗口后应用退出，不持续采集；反馈页不会生成模拟评论或统计。
+**开发分支新增**：X Native App 配置、浏览器授权、纯文本预览确认发布及平台回执；RSS 来源筛选、缓存内容搜索和全文优先预览。X 凭证使用 macOS 钥匙串，不进入资料备份。未配置开发者应用时不会向 X 发帖。
+
+**尚未实现**：平台自动上传图片、评论及浏览量同步、后台采集、云同步和自动更新。发布时需在平台上传图片。关闭窗口后应用退出，不持续采集；反馈页不会生成模拟评论或统计。
 
 ## 开发与验证
 
@@ -55,6 +57,8 @@ npm run release:mac
 发行构建会移除编译路径中的本机用户目录，并将许可证和第三方声明放入应用包。输出为 `release/tauri-macos/内容工作台.app`。`npm run package:mac` 用于一般本机打包；公开发行应使用 `release:mac` 并检查最终产物。
 
 ## 数据与回退
+
+开发分支升级到 schema 3 前保留 0.2.0 数据库副本；旧版不会打开新库。升级与授权配置的回退边界见[发布授权说明](docs/publishing-and-preview.md#兼容与回退)。
 
 Tauri 正式应用资料在 `~/Library/Application Support/local.contentworkbench.tauri/`，开发资料在 `.tauri-data/`。备份含正文，属于私人资料，请自行安全保存，不要上传到 Issue。
 

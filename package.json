@@ -1,6 +1,6 @@
 {
   "name": "content-workbench",
-  "version": "0.2.0",
+  "version": "0.3.0-dev.1",
   "private": true,
   "description": "A local desktop workspace for writing, publishing and reading, without AI.",
   "author": "Content Workbench",
@@ -36,6 +36,7 @@
     "react-dom": "19.3.1",
     "react-markdown": "^10.1.0",
     "remark-gfm": "^4.0.1",
+    "twitter-text": "^3.1.0",
     "zod": "^4.1.13"
   },
   "devDependencies": {
@@ -43,6 +44,7 @@
     "@types/node": "^24.10.0",
     "@types/react": "^19.2.0",
     "@types/react-dom": "^19.2.0",
+    "@types/twitter-text": "^3.1.10",
     "@vitejs/plugin-react": "^6.0.0",
     "electron": "45.1.0",
     "electron-builder": "26.18.0",
