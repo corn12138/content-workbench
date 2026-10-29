@@ -39,3 +39,14 @@ gitleaks git . --log-opts='--all --full-history' --redact --ignore-gitleaks-allo
 - 睡眠唤醒、渲染进程完全无响应、长期试用和其他桌面平台不属于已验收范围。
 
 每次发行的实际结果与限制记录在 GitHub Release；不得用本流程清单本身宣称检查通过。
+
+## 0.1.0 自动检查记录
+
+- TypeScript 类型检查与 12 项数据测试通过。
+- Rust 内核与迁移 18 项测试通过。
+- 两版数据对照 14 项检查通过。
+- 原生测试的窗口关闭、应用退出两阶段通过，包含保存前待提交编辑检查；本次原生剪贴板也通过。脚本退出场景不等于真实键盘快捷键测试。
+- 源码候选、展开的第三方源码及初始 Git 历史扫描未发现秘密或本机个人路径。发行包须在封装完成后另行扫描。
+- npm audit 为 0 项告警。cargo-audit 漏洞类告警为 0；完整跨平台锁文件另有 4 项 unmaintained 和 1 项 unsound 提示。
+
+Rust 提示对应 `proc-macro-error`、`zbus_names`、`zvariant`、`zvariant_derive` 和 `glib`，均不在 `cargo metadata --filter-platform aarch64-apple-darwin` 的已解析依赖图内。`glib` 的问题记录为 [RUSTSEC-2024-0429](https://rustsec.org/advisories/RUSTSEC-2024-0429.html)。这些提示仍需在后续 Linux 支持前处理，不将“漏洞类告警为 0”描述成所有目标都没有依赖问题。

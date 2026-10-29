@@ -24,6 +24,7 @@ struct SmokeState {
     started: AtomicBool,
     report: Mutex<Value>,
     clipboard: Mutex<Option<String>>,
+    clipboard_dirty: AtomicBool,
 }
 
 fn isolated_directory() -> Result<PathBuf, String> {
@@ -61,6 +62,7 @@ pub fn plugin() -> TauriPlugin<Wry> {
                 started: AtomicBool::new(false),
                 report: Mutex::new(json!({"phase": phase, "passed": false, "fixtureOnly": true})),
                 clipboard: Mutex::new(app.clipboard().read_text().ok()),
+                clipboard_dirty: AtomicBool::new(false),
             });
             Ok(())
         })
@@ -102,6 +104,10 @@ pub fn comparison_step(
     match action.as_str() {
         "phase" => Ok(json!(state.phase)),
         "clipboard_available" => Ok(json!(state.clipboard.lock().map_err(|e| e.to_string())?.is_some())),
+        "clipboard_begin" => {
+            state.clipboard_dirty.store(true, Ordering::SeqCst);
+            Ok(Value::Null)
+        }
         "resize" => {
             window
                 .set_size(tauri::LogicalSize::new(850.0, 680.0))
@@ -116,11 +122,7 @@ pub fn comparison_step(
                 .find(|d| d.title.contains("Tauri 本地测试样本"))
                 .ok_or("Clipboard fixture absent")?;
             let correct = app.clipboard().read_text().map_err(|e| e.to_string())? == expected.body;
-            if let Some(previous) = state.clipboard.lock().map_err(|e| e.to_string())?.take() {
-                app.clipboard()
-                    .write_text(previous)
-                    .map_err(|e| e.to_string())?;
-            }
+            restore_clipboard(&app)?;
             if !correct {
                 return Err("Native clipboard did not contain the draft body".into());
             }
@@ -140,6 +142,7 @@ pub fn comparison_step(
             Ok(Value::Null)
         }
         "close" => {
+            restore_clipboard(&app)?;
             let snapshot = app.state::<AppState>().lock()?.snapshot()?;
             let already_saved = if state.phase == "redClose" {
                 snapshot
@@ -175,6 +178,7 @@ pub fn comparison_step(
 }
 
 fn fail(app: &AppHandle, error: String) {
+    let _ = restore_clipboard(app);
     if let Some(state) = app.try_state::<SmokeState>() {
         if let Ok(mut report) = state.report.lock() {
             report["error"] = error.chars().take(1000).collect::<String>().into();
@@ -186,13 +190,23 @@ fn fail(app: &AppHandle, error: String) {
     app.exit(1);
 }
 
+fn restore_clipboard(app: &AppHandle) -> Result<(), String> {
+    let Some(state) = app.try_state::<SmokeState>() else {
+        return Ok(());
+    };
+    if state.clipboard_dirty.swap(false, Ordering::SeqCst) {
+        // Plugins release native resources before the final Exit callback; restore only before requesting exit.
+        if let Some(previous) = state.clipboard.lock().map_err(|e| e.to_string())?.take() {
+            app.clipboard().write_text(previous).map_err(|e| e.to_string())?;
+        }
+    }
+    Ok(())
+}
+
 pub fn on_exit(app: &AppHandle) {
     let Some(state) = app.try_state::<SmokeState>() else {
         return;
     };
-    if let Ok(mut clipboard) = state.clipboard.lock() {
-        if let Some(previous) = clipboard.take() { let _ = app.clipboard().write_text(previous); }
-    }
     let Ok(mut report) = state.report.lock() else {
         return;
     };

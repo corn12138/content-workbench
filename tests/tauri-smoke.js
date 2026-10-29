@@ -55,6 +55,7 @@
   await wait(() => document.querySelector("dialog[open]"), "publication preview");
   const clipboardAvailable = await step("clipboard_available");
   if (clipboardAvailable) {
+    await step("clipboard_begin");
     await click("复制正文");
     await wait(() => button("正文已复制"), "clipboard success indicator");
     await step("clipboard");
