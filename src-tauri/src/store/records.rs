@@ -118,10 +118,14 @@ impl WorkbenchStore {
 
     pub fn delete_reading(&mut self, id: &str) -> Result<(), String> {
         self.get_reading(id)?;
-        self.connection
-            .execute("DELETE FROM readings WHERE id = ?", [id])
-            .map_err(|e| e.to_string())?;
-        Ok(())
+        self.transaction(|store| {
+            store.detach_reading(id)?;
+            store
+                .connection
+                .execute("DELETE FROM readings WHERE id = ?", [id])
+                .map_err(|e| e.to_string())?;
+            Ok(())
+        })
     }
 
     pub fn reading_to_draft(&mut self, id: &str) -> Result<Draft, String> {

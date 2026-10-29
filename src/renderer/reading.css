@@ -284,3 +284,109 @@
     flex-direction: column;
   }
 }
+.feed-panel {
+  position: relative;
+  margin: -8px 30px 18px;
+  flex-shrink: 0;
+}
+.feed-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.feed-management {
+  position: static;
+  font-size: 12px;
+}
+.feed-management summary {
+  cursor: pointer;
+  padding: 9px;
+  color: #426b5c;
+}
+.feed-sources {
+  position: absolute;
+  z-index: 5;
+  top: 100%;
+  right: 0;
+  left: 0;
+  max-height: 320px;
+  overflow: auto;
+  padding: 16px;
+  background: #fff;
+  border: 1px solid #dbe7df;
+  border-radius: 10px;
+  box-shadow: 0 8px 28px #19382518;
+}
+.feed-sources > p {
+  line-height: 1.7;
+  margin-top: 0;
+}
+.feed-source {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 0;
+  border-top: 1px solid #edf0eb;
+}
+.feed-source > div {
+  min-width: 0;
+}
+.feed-source span {
+  display: block;
+  margin-top: 5px;
+  overflow-wrap: anywhere;
+}
+.feed-source button {
+  flex-shrink: 0;
+}
+.feed-add {
+  padding: 16px;
+  margin-top: 10px;
+  background: #f7faf8;
+  border: 1px solid #dbe6e1;
+  border-radius: 10px;
+}
+.feed-add label {
+  display: block;
+  font-size: 12px;
+  margin-bottom: 8px;
+}
+.feed-add > div {
+  display: flex;
+  gap: 10px;
+}
+.feed-add input {
+  flex: 1;
+  min-width: 0;
+}
+.feed-add p,
+.feed-message {
+  font-size: 12px;
+  line-height: 1.7;
+  margin: 10px 0 0;
+}
+.reading-excerpt {
+  margin-bottom: 28px;
+  padding: 18px;
+  background: #f7f9f5;
+  border-radius: 10px;
+}
+.reading-excerpt p {
+  font-size: 14px;
+  line-height: 1.9;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  max-height: 360px;
+  overflow-y: auto;
+}
+.reading-excerpt > .muted {
+  font-size: 11px;
+}
+@media (max-width: 1000px) {
+  .feed-panel {
+    margin-left: 22px;
+    margin-right: 22px;
+  }
+}

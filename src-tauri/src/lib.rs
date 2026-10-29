@@ -1,4 +1,7 @@
 mod commands;
+mod feed_commands;
+pub mod feed_fetch;
+pub mod feed_parse;
 mod files;
 mod lifecycle;
 mod migration;
@@ -41,6 +44,12 @@ pub fn run() {
             files::export_draft,
             files::backup,
             files::restore_backup,
+            files::insert_image,
+            commands::asset_data,
+            feed_commands::library,
+            feed_commands::add_feed,
+            feed_commands::refresh_feed,
+            feed_commands::unsubscribe,
             lifecycle::finish_close,
             #[cfg(debug_assertions)]
             smoke::comparison_step
@@ -81,6 +90,7 @@ pub fn run() {
                 can_close: AtomicBool::new(false),
                 close_pending: AtomicBool::new(false),
                 close_attempt: AtomicU64::new(0),
+                library_epoch: AtomicU64::new(0),
             });
             let window =
                 tauri::WebviewWindowBuilder::from_config(app, &app.config().app.windows[0])?
@@ -135,3 +145,6 @@ pub fn run() {
         }
     });
 }
+
+#[cfg(test)]
+mod feed_tests;

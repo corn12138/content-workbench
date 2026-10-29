@@ -4,7 +4,7 @@
 
 A local-first desktop workspace for developer writing, assisted publishing and reading notes. Built with Tauri 2, Rust and React. No AI service or account is required for the local workflow.
 
-**0.1.0 开发者预览版**。已验证 macOS Apple Silicon；Windows、Linux 和 Intel Mac 尚未验收。
+**开发分支：0.2.0-dev.1**，新增图片、完整备份和 RSS 阅读；当前公开下载仍为 **0.1.0**。已验证平台为 macOS Apple Silicon；Windows、Linux 和 Intel Mac 尚未验收。
 
 ## 下载与开始
 
@@ -17,16 +17,17 @@ A local-first desktop workspace for developer writing, assisted publishing and r
 3. 在「阅读」保存链接和笔记，将笔记转为带来源的草稿。
 4. 在设置中备份资料；恢复前应用会保存当前资料的恢复副本。
 
-## 当前能力
+## 当前源码能力（0.2 开发版）
 
-- Markdown 文字导入、正文去重、新建、搜索、归档和恢复。
+- Markdown 导入时自动保存文章目录内的图片，支持插入图片、正文去重、新建、搜索、归档和恢复。
 - 编辑自动保存、历史版本和版本恢复，切页及退出前等待保存。
 - Markdown 预览不执行原始 HTML，不自动加载远程图片。
 - 掘金辅助发布与人工确认记录；反馈页展示已保存的作品记录。
-- 阅读链接、笔记、已读状态和笔记转稿。
-- SQLite 本地存储，文字资料、历史版本与关联记录的 JSON 备份恢复。
+- 阅读链接、RSS/Atom 订阅内容、笔记、已读状态和笔记转稿；手动更新订阅，取消订阅保留已收录内容。
+- SQLite 本地存储；单个 `.cwb` 备份包含正文、历史、图片、发布记录、订阅和笔记，兼容导入旧 JSON 文字备份。
+- 有本地图片的文章导出为 ZIP（`article.md` + `assets/`），解压后可重新导入；纯文字文章仍导出 Markdown。
 
-**尚未实现**：图片资源随稿保存、X 自动发布、评论及浏览量同步、RSS/Atom、后台采集、云同步和自动更新。图片目前仅保留 Markdown 引用，发布时需在平台补充。关闭窗口后应用退出，不持续采集；反馈页不会生成模拟评论或统计。
+**尚未实现**：平台自动上传图片、X 自动发布、评论及浏览量同步、后台采集、云同步和自动更新。发布时需在平台上传图片。关闭窗口后应用退出，不持续采集；反馈页不会生成模拟评论或统计。
 
 ## 开发与验证
 
@@ -57,9 +58,11 @@ npm run release:mac
 
 Tauri 正式应用资料在 `~/Library/Application Support/local.contentworkbench.tauri/`，开发资料在 `.tauri-data/`。备份含正文，属于私人资料，请自行安全保存，不要上传到 Issue。
 
-首次运行会验证并复制已有 Electron 资料，原目录 `~/Library/Application Support/content-workbench/` 保留；迁移失败会提示错误，不以空白资料掩盖失败。两版资料不自动同步，切回 Electron 前需在 Tauri 导出备份，再从 Electron 恢复。
+首次运行会验证并复制已有 Electron 资料，原目录 `~/Library/Application Support/content-workbench/` 保留；迁移失败会提示错误，不以空白资料掩盖失败。两版资料不自动同步。0.2 会先保存独立的 v1 SQLite 副本再升级到 schema 2；Electron 仍使用原来的独立目录，不能直接打开新版数据库或恢复 `.cwb`。要回退旧 Tauri，可在退出应用后用升级前的 v1 副本另建数据目录；升级后的图片与订阅只在 0.2 中继续使用。
 
 Electron 源码和构建入口继续保留：`npm run dev:electron`、`npm run package:electron`。首发下载包仅提供 Tauri；需要回退时可从源码构建 Electron。构建回退包时也应保留其运行时的第三方许可证。
+
+图片支持 PNG、JPEG、GIF 和 WebP，单张不超过 10 MB，总量不超过 128 MB（最多 512 张）。订阅最多同时启用 50 个来源，每次取最近最多 200 条、总关联条目上限 20,000，订阅缓存上限 96 MB；仅在添加和点击更新时联网。RSS 显示源站提供的纯文本内容，完整排版与未提供的正文请打开原文。
 
 ## 参与与文档
 

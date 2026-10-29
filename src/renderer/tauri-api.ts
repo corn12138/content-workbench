@@ -7,9 +7,10 @@ const pending = new Set<Promise<unknown>>();
 async function call<T>(
   command: string,
   args?: Record<string, unknown>,
+  waitForClose = true,
 ): Promise<T> {
   const operation = invoke<T>(command, args);
-  pending.add(operation);
+  if (waitForClose) pending.add(operation);
   try {
     return await operation;
   } catch (error) {
@@ -35,6 +36,13 @@ export async function createTauriAPI(): Promise<WorkbenchAPI> {
   window.addEventListener("unload", stopCancel, { once: true });
   window.addEventListener("unload", unlisten, { once: true });
   return {
+    insertImage: () => call("insert_image"),
+    assetData: (name) => call("asset_data", { name }, false),
+    library: () => call("library"),
+    // Network refreshes write only after fetching and use an epoch guard; they must not delay closing local editors.
+    addFeed: (url) => call("add_feed", { url }, false),
+    refreshFeed: (id) => call("refresh_feed", { id }, false),
+    unsubscribe: (id) => call("unsubscribe", { id }),
     snapshot: () => call("snapshot"),
     saveDraft: (input) => call("save_draft", { input }),
     importMarkdown: () => call("import_markdown"),

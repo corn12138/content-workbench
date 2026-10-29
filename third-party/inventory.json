@@ -56,6 +56,15 @@
   },
   {
     "ecosystem": "cargo",
+    "name": "atomic-waker",
+    "version": "1.1.2",
+    "license": "Apache-2.0 OR MIT",
+    "source": "https://crates.io/api/v1/crates/atomic-waker/1.1.2/download",
+    "repository": "https://github.com/smol-rs/atomic-waker",
+    "licenseDirectory": "licenses/cargo-atomic-waker-1.1.2"
+  },
+  {
+    "ecosystem": "cargo",
     "name": "autocfg",
     "version": "1.5.1",
     "license": "Apache-2.0 OR MIT",
@@ -65,12 +74,39 @@
   },
   {
     "ecosystem": "cargo",
+    "name": "aws-lc-rs",
+    "version": "1.19.0",
+    "license": "ISC AND (Apache-2.0 OR ISC)",
+    "source": "https://crates.io/api/v1/crates/aws-lc-rs/1.19.0/download",
+    "repository": "https://github.com/aws/aws-lc-rs",
+    "licenseDirectory": "licenses/cargo-aws-lc-rs-1.19.0"
+  },
+  {
+    "ecosystem": "cargo",
+    "name": "aws-lc-sys",
+    "version": "0.47.0",
+    "license": "ISC AND (Apache-2.0 OR ISC) AND Apache-2.0 AND MIT AND BSD-3-Clause AND (Apache-2.0 OR ISC OR MIT) AND (Apache-2.0 OR ISC OR MIT-0)",
+    "source": "https://crates.io/api/v1/crates/aws-lc-sys/0.47.0/download",
+    "repository": "https://github.com/aws/aws-lc-rs",
+    "licenseDirectory": "licenses/cargo-aws-lc-sys-0.47.0"
+  },
+  {
+    "ecosystem": "cargo",
     "name": "base64",
     "version": "0.21.7",
     "license": "MIT OR Apache-2.0",
     "source": "https://crates.io/api/v1/crates/base64/0.21.7/download",
     "repository": "https://github.com/marshallpierce/rust-base64",
     "licenseDirectory": "licenses/cargo-base64-0.21.7"
+  },
+  {
+    "ecosystem": "cargo",
+    "name": "base64",
+    "version": "0.22.1",
+    "license": "MIT OR Apache-2.0",
+    "source": "https://crates.io/api/v1/crates/base64/0.22.1/download",
+    "repository": "https://github.com/marshallpierce/rust-base64",
+    "licenseDirectory": "licenses/cargo-base64-0.22.1"
   },
   {
     "ecosystem": "cargo",
@@ -165,6 +201,15 @@
   },
   {
     "ecosystem": "cargo",
+    "name": "bumpalo",
+    "version": "3.20.3",
+    "license": "MIT OR Apache-2.0",
+    "source": "https://crates.io/api/v1/crates/bumpalo/3.20.3/download",
+    "repository": "https://github.com/fitzgen/bumpalo",
+    "licenseDirectory": "licenses/cargo-bumpalo-3.20.3"
+  },
+  {
+    "ecosystem": "cargo",
     "name": "bytemuck",
     "version": "1.25.2",
     "license": "Zlib OR Apache-2.0 OR MIT",
@@ -255,6 +300,15 @@
   },
   {
     "ecosystem": "cargo",
+    "name": "cfg_aliases",
+    "version": "0.2.2",
+    "license": "MIT",
+    "source": "https://crates.io/api/v1/crates/cfg_aliases/0.2.2/download",
+    "repository": "https://github.com/katharostech/cfg_aliases",
+    "licenseDirectory": "licenses/cargo-cfg_aliases-0.2.2"
+  },
+  {
+    "ecosystem": "cargo",
     "name": "cfg-if",
     "version": "1.0.5",
     "license": "MIT OR Apache-2.0",
@@ -264,12 +318,39 @@
   },
   {
     "ecosystem": "cargo",
+    "name": "chacha20",
+    "version": "0.10.2",
+    "license": "MIT OR Apache-2.0",
+    "source": "https://crates.io/api/v1/crates/chacha20/0.10.2/download",
+    "repository": "https://github.com/RustCrypto/stream-ciphers",
+    "licenseDirectory": "licenses/cargo-chacha20-0.10.2"
+  },
+  {
+    "ecosystem": "cargo",
     "name": "chrono",
     "version": "0.4.45",
     "license": "MIT OR Apache-2.0",
     "source": "https://crates.io/api/v1/crates/chrono/0.4.45/download",
     "repository": "https://github.com/chronotope/chrono",
     "licenseDirectory": "licenses/cargo-chrono-0.4.45"
+  },
+  {
+    "ecosystem": "cargo",
+    "name": "cmake",
+    "version": "0.1.58",
+    "license": "MIT OR Apache-2.0",
+    "source": "https://crates.io/api/v1/crates/cmake/0.1.58/download",
+    "repository": "https://github.com/rust-lang/cmake-rs",
+    "licenseDirectory": "licenses/cargo-cmake-0.1.58"
+  },
+  {
+    "ecosystem": "cargo",
+    "name": "color_quant",
+    "version": "1.1.0",
+    "license": "MIT",
+    "source": "https://crates.io/api/v1/crates/color_quant/1.1.0/download",
+    "repository": "https://github.com/image-rs/color_quant.git",
+    "licenseDirectory": "licenses/cargo-color_quant-1.1.0"
   },
   {
     "ecosystem": "cargo",
@@ -589,6 +670,15 @@
   },
   {
     "ecosystem": "cargo",
+    "name": "encoding_rs",
+    "version": "0.8.42",
+    "license": "(Apache-2.0 OR MIT) AND BSD-3-Clause",
+    "source": "https://crates.io/api/v1/crates/encoding_rs/0.8.42/download",
+    "repository": "https://github.com/hsivonen/encoding_rs",
+    "licenseDirectory": "licenses/cargo-encoding_rs-0.8.42"
+  },
+  {
+    "ecosystem": "cargo",
     "name": "equivalent",
     "version": "1.0.3",
     "license": "Apache-2.0 OR MIT",
@@ -658,6 +748,15 @@
     "source": "https://crates.io/api/v1/crates/fdeflate/0.3.7/download",
     "repository": "https://github.com/image-rs/fdeflate",
     "licenseDirectory": "licenses/cargo-fdeflate-0.3.7"
+  },
+  {
+    "ecosystem": "cargo",
+    "name": "feed-rs",
+    "version": "3.0.0",
+    "license": "MIT",
+    "source": "https://crates.io/api/v1/crates/feed-rs/3.0.0/download",
+    "repository": "https://github.com/feed-rs/feed-rs.git",
+    "licenseDirectory": "licenses/cargo-feed-rs-3.0.0"
   },
   {
     "ecosystem": "cargo",
@@ -733,12 +832,102 @@
   },
   {
     "ecosystem": "cargo",
+    "name": "fs_extra",
+    "version": "1.3.0",
+    "license": "MIT",
+    "source": "https://crates.io/api/v1/crates/fs_extra/1.3.0/download",
+    "repository": "https://github.com/webdesus/fs_extra",
+    "licenseDirectory": "licenses/cargo-fs_extra-1.3.0"
+  },
+  {
+    "ecosystem": "cargo",
+    "name": "futures-channel",
+    "version": "0.3.34",
+    "license": "MIT OR Apache-2.0",
+    "source": "https://crates.io/api/v1/crates/futures-channel/0.3.34/download",
+    "repository": "https://github.com/rust-lang/futures-rs",
+    "licenseDirectory": "licenses/cargo-futures-channel-0.3.34"
+  },
+  {
+    "ecosystem": "cargo",
+    "name": "futures-core",
+    "version": "0.3.34",
+    "license": "MIT OR Apache-2.0",
+    "source": "https://crates.io/api/v1/crates/futures-core/0.3.34/download",
+    "repository": "https://github.com/rust-lang/futures-rs",
+    "licenseDirectory": "licenses/cargo-futures-core-0.3.34"
+  },
+  {
+    "ecosystem": "cargo",
+    "name": "futures-io",
+    "version": "0.3.34",
+    "license": "MIT OR Apache-2.0",
+    "source": "https://crates.io/api/v1/crates/futures-io/0.3.34/download",
+    "repository": "https://github.com/rust-lang/futures-rs",
+    "licenseDirectory": "licenses/cargo-futures-io-0.3.34"
+  },
+  {
+    "ecosystem": "cargo",
+    "name": "futures-macro",
+    "version": "0.3.34",
+    "license": "MIT OR Apache-2.0",
+    "source": "https://crates.io/api/v1/crates/futures-macro/0.3.34/download",
+    "repository": "https://github.com/rust-lang/futures-rs",
+    "licenseDirectory": "licenses/cargo-futures-macro-0.3.34"
+  },
+  {
+    "ecosystem": "cargo",
+    "name": "futures-sink",
+    "version": "0.3.34",
+    "license": "MIT OR Apache-2.0",
+    "source": "https://crates.io/api/v1/crates/futures-sink/0.3.34/download",
+    "repository": "https://github.com/rust-lang/futures-rs",
+    "licenseDirectory": "licenses/cargo-futures-sink-0.3.34"
+  },
+  {
+    "ecosystem": "cargo",
+    "name": "futures-task",
+    "version": "0.3.34",
+    "license": "MIT OR Apache-2.0",
+    "source": "https://crates.io/api/v1/crates/futures-task/0.3.34/download",
+    "repository": "https://github.com/rust-lang/futures-rs",
+    "licenseDirectory": "licenses/cargo-futures-task-0.3.34"
+  },
+  {
+    "ecosystem": "cargo",
+    "name": "futures-util",
+    "version": "0.3.34",
+    "license": "MIT OR Apache-2.0",
+    "source": "https://crates.io/api/v1/crates/futures-util/0.3.34/download",
+    "repository": "https://github.com/rust-lang/futures-rs",
+    "licenseDirectory": "licenses/cargo-futures-util-0.3.34"
+  },
+  {
+    "ecosystem": "cargo",
     "name": "generic-array",
     "version": "0.14.7",
     "license": "MIT",
     "source": "https://crates.io/api/v1/crates/generic-array/0.14.7/download",
     "repository": "https://github.com/fizyk20/generic-array.git",
     "licenseDirectory": "licenses/cargo-generic-array-0.14.7"
+  },
+  {
+    "ecosystem": "cargo",
+    "name": "getopts",
+    "version": "0.2.24",
+    "license": "MIT OR Apache-2.0",
+    "source": "https://crates.io/api/v1/crates/getopts/0.2.24/download",
+    "repository": "https://github.com/rust-lang/getopts",
+    "licenseDirectory": "licenses/cargo-getopts-0.2.24"
+  },
+  {
+    "ecosystem": "cargo",
+    "name": "getrandom",
+    "version": "0.2.17",
+    "license": "MIT OR Apache-2.0",
+    "source": "https://crates.io/api/v1/crates/getrandom/0.2.17/download",
+    "repository": "https://github.com/rust-random/getrandom",
+    "licenseDirectory": "licenses/cargo-getrandom-0.2.17"
   },
   {
     "ecosystem": "cargo",
@@ -757,6 +946,15 @@
     "source": "https://crates.io/api/v1/crates/getrandom/0.4.3/download",
     "repository": "https://github.com/rust-random/getrandom",
     "licenseDirectory": "licenses/cargo-getrandom-0.4.3"
+  },
+  {
+    "ecosystem": "cargo",
+    "name": "gif",
+    "version": "0.14.2",
+    "license": "MIT OR Apache-2.0",
+    "source": "https://crates.io/api/v1/crates/gif/0.14.2/download",
+    "repository": "https://github.com/image-rs/image-gif",
+    "licenseDirectory": "licenses/cargo-gif-0.14.2"
   },
   {
     "ecosystem": "cargo",
@@ -832,6 +1030,15 @@
   },
   {
     "ecosystem": "cargo",
+    "name": "html-escape",
+    "version": "0.2.15",
+    "license": "MIT",
+    "source": "https://crates.io/api/v1/crates/html-escape/0.2.15/download",
+    "repository": "https://github.com/magiclen/html-escape",
+    "licenseDirectory": "licenses/cargo-html-escape-0.2.15"
+  },
+  {
+    "ecosystem": "cargo",
     "name": "html5ever",
     "version": "0.39.0",
     "license": "MIT OR Apache-2.0",
@@ -847,6 +1054,60 @@
     "source": "https://crates.io/api/v1/crates/http/1.5.0/download",
     "repository": "https://github.com/hyperium/http",
     "licenseDirectory": "licenses/cargo-http-1.5.0"
+  },
+  {
+    "ecosystem": "cargo",
+    "name": "http-body",
+    "version": "1.1.0",
+    "license": "MIT",
+    "source": "https://crates.io/api/v1/crates/http-body/1.1.0/download",
+    "repository": "https://github.com/hyperium/http-body",
+    "licenseDirectory": "licenses/cargo-http-body-1.1.0"
+  },
+  {
+    "ecosystem": "cargo",
+    "name": "http-body-util",
+    "version": "0.1.5",
+    "license": "MIT",
+    "source": "https://crates.io/api/v1/crates/http-body-util/0.1.5/download",
+    "repository": "https://github.com/hyperium/http-body",
+    "licenseDirectory": "licenses/cargo-http-body-util-0.1.5"
+  },
+  {
+    "ecosystem": "cargo",
+    "name": "httparse",
+    "version": "1.10.1",
+    "license": "MIT OR Apache-2.0",
+    "source": "https://crates.io/api/v1/crates/httparse/1.10.1/download",
+    "repository": "https://github.com/seanmonstar/httparse",
+    "licenseDirectory": "licenses/cargo-httparse-1.10.1"
+  },
+  {
+    "ecosystem": "cargo",
+    "name": "hyper",
+    "version": "1.12.0",
+    "license": "MIT",
+    "source": "https://crates.io/api/v1/crates/hyper/1.12.0/download",
+    "repository": "https://github.com/hyperium/hyper",
+    "licenseDirectory": "licenses/cargo-hyper-1.12.0"
+  },
+  {
+    "ecosystem": "cargo",
+    "name": "hyper-rustls",
+    "version": "0.27.10",
+    "license": "Apache-2.0 OR ISC OR MIT",
+    "source": "https://crates.io/api/v1/crates/hyper-rustls/0.27.10/download",
+    "repository": "https://github.com/rustls/hyper-rustls",
+    "licenseDirectory": "licenses/cargo-hyper-rustls-0.27.10"
+  },
+  {
+    "ecosystem": "cargo",
+    "name": "hyper-util",
+    "version": "0.1.21",
+    "license": "MIT",
+    "source": "https://crates.io/api/v1/crates/hyper-util/0.1.21/download",
+    "repository": "https://github.com/hyperium/hyper-util",
+    "licenseDirectory": "licenses/cargo-hyper-util-0.1.21"
   },
   {
     "ecosystem": "cargo",
@@ -967,6 +1228,15 @@
   },
   {
     "ecosystem": "cargo",
+    "name": "image-webp",
+    "version": "0.2.4",
+    "license": "MIT OR Apache-2.0",
+    "source": "https://crates.io/api/v1/crates/image-webp/0.2.4/download",
+    "repository": "https://github.com/image-rs/image-webp",
+    "licenseDirectory": "licenses/cargo-image-webp-0.2.4"
+  },
+  {
+    "ecosystem": "cargo",
     "name": "indexmap",
     "version": "1.9.3",
     "license": "Apache-2.0 OR MIT",
@@ -994,6 +1264,15 @@
   },
   {
     "ecosystem": "cargo",
+    "name": "ipnet",
+    "version": "2.12.2",
+    "license": "MIT OR Apache-2.0",
+    "source": "https://crates.io/api/v1/crates/ipnet/2.12.2/download",
+    "repository": "https://github.com/krisprice/ipnet",
+    "licenseDirectory": "licenses/cargo-ipnet-2.12.2"
+  },
+  {
+    "ecosystem": "cargo",
     "name": "itoa",
     "version": "1.0.18",
     "license": "MIT OR Apache-2.0",
@@ -1018,6 +1297,15 @@
     "source": "https://crates.io/api/v1/crates/jiff-core/0.1.1/download",
     "repository": "https://github.com/BurntSushi/jiff",
     "licenseDirectory": "licenses/cargo-jiff-core-0.1.1"
+  },
+  {
+    "ecosystem": "cargo",
+    "name": "jobserver",
+    "version": "0.1.35",
+    "license": "MIT OR Apache-2.0",
+    "source": "https://crates.io/api/v1/crates/jobserver/0.1.35/download",
+    "repository": "https://github.com/rust-lang/jobserver-rs",
+    "licenseDirectory": "licenses/cargo-jobserver-0.1.35"
   },
   {
     "ecosystem": "cargo",
@@ -1093,12 +1381,30 @@
   },
   {
     "ecosystem": "cargo",
+    "name": "lru-slab",
+    "version": "0.1.3",
+    "license": "MIT OR Apache-2.0 OR Zlib",
+    "source": "https://crates.io/api/v1/crates/lru-slab/0.1.3/download",
+    "repository": "https://github.com/Ralith/lru-slab",
+    "licenseDirectory": "licenses/cargo-lru-slab-0.1.3"
+  },
+  {
+    "ecosystem": "cargo",
     "name": "markup5ever",
     "version": "0.39.0",
     "license": "MIT OR Apache-2.0",
     "source": "https://crates.io/api/v1/crates/markup5ever/0.39.0/download",
     "repository": "https://github.com/servo/html5ever",
     "licenseDirectory": "licenses/cargo-markup5ever-0.39.0"
+  },
+  {
+    "ecosystem": "cargo",
+    "name": "mediatype",
+    "version": "0.23.0",
+    "license": "MIT",
+    "source": "https://crates.io/api/v1/crates/mediatype/0.23.0/download",
+    "repository": "https://github.com/picoHz/mediatype",
+    "licenseDirectory": "licenses/cargo-mediatype-0.23.0"
   },
   {
     "ecosystem": "cargo",
@@ -1165,12 +1471,30 @@
   },
   {
     "ecosystem": "cargo",
+    "name": "multiversion_no_op",
+    "version": "1.0.0",
+    "license": "Apache-2.0 OR MIT",
+    "source": "https://crates.io/api/v1/crates/multiversion_no_op/1.0.0/download",
+    "repository": "https://github.com/hsivonen/multiversion_no_op",
+    "licenseDirectory": "licenses/cargo-multiversion_no_op-1.0.0"
+  },
+  {
+    "ecosystem": "cargo",
     "name": "new_debug_unreachable",
     "version": "1.0.6",
     "license": "MIT",
     "source": "https://crates.io/api/v1/crates/new_debug_unreachable/1.0.6/download",
     "repository": "https://github.com/mbrubeck/rust-debug-unreachable",
     "licenseDirectory": "licenses/cargo-new_debug_unreachable-1.0.6"
+  },
+  {
+    "ecosystem": "cargo",
+    "name": "nix",
+    "version": "0.31.3",
+    "license": "MIT",
+    "source": "https://crates.io/api/v1/crates/nix/0.31.3/download",
+    "repository": "https://github.com/nix-rust/nix",
+    "licenseDirectory": "licenses/cargo-nix-0.31.3"
   },
   {
     "ecosystem": "cargo",
@@ -1463,6 +1787,24 @@
   },
   {
     "ecosystem": "cargo",
+    "name": "pulldown-cmark",
+    "version": "0.13.5",
+    "license": "MIT",
+    "source": "https://crates.io/api/v1/crates/pulldown-cmark/0.13.5/download",
+    "repository": "https://github.com/raphlinus/pulldown-cmark",
+    "licenseDirectory": "licenses/cargo-pulldown-cmark-0.13.5"
+  },
+  {
+    "ecosystem": "cargo",
+    "name": "pulldown-cmark-escape",
+    "version": "0.11.0",
+    "license": "MIT",
+    "source": "https://crates.io/api/v1/crates/pulldown-cmark-escape/0.11.0/download",
+    "repository": "https://github.com/raphlinus/pulldown-cmark",
+    "licenseDirectory": "licenses/cargo-pulldown-cmark-escape-0.11.0"
+  },
+  {
+    "ecosystem": "cargo",
     "name": "pxfm",
     "version": "0.1.30",
     "license": "BSD-3-Clause OR Apache-2.0",
@@ -1490,12 +1832,66 @@
   },
   {
     "ecosystem": "cargo",
+    "name": "quinn",
+    "version": "0.11.12",
+    "license": "MIT OR Apache-2.0",
+    "source": "https://crates.io/api/v1/crates/quinn/0.11.12/download",
+    "repository": "https://github.com/quinn-rs/quinn",
+    "licenseDirectory": "licenses/cargo-quinn-0.11.12"
+  },
+  {
+    "ecosystem": "cargo",
+    "name": "quinn-proto",
+    "version": "0.11.19",
+    "license": "MIT OR Apache-2.0",
+    "source": "https://crates.io/api/v1/crates/quinn-proto/0.11.19/download",
+    "repository": "https://github.com/quinn-rs/quinn",
+    "licenseDirectory": "licenses/cargo-quinn-proto-0.11.19"
+  },
+  {
+    "ecosystem": "cargo",
+    "name": "quinn-udp",
+    "version": "0.5.16",
+    "license": "MIT OR Apache-2.0",
+    "source": "https://crates.io/api/v1/crates/quinn-udp/0.5.16/download",
+    "repository": "https://github.com/quinn-rs/quinn",
+    "licenseDirectory": "licenses/cargo-quinn-udp-0.5.16"
+  },
+  {
+    "ecosystem": "cargo",
     "name": "quote",
     "version": "1.0.47",
     "license": "MIT OR Apache-2.0",
     "source": "https://crates.io/api/v1/crates/quote/1.0.47/download",
     "repository": "https://github.com/dtolnay/quote",
     "licenseDirectory": "licenses/cargo-quote-1.0.47"
+  },
+  {
+    "ecosystem": "cargo",
+    "name": "rand",
+    "version": "0.10.3",
+    "license": "MIT OR Apache-2.0",
+    "source": "https://crates.io/api/v1/crates/rand/0.10.3/download",
+    "repository": "https://github.com/rust-random/rand",
+    "licenseDirectory": "licenses/cargo-rand-0.10.3"
+  },
+  {
+    "ecosystem": "cargo",
+    "name": "rand_core",
+    "version": "0.10.1",
+    "license": "MIT OR Apache-2.0",
+    "source": "https://crates.io/api/v1/crates/rand_core/0.10.1/download",
+    "repository": "https://github.com/rust-random/rand_core",
+    "licenseDirectory": "licenses/cargo-rand_core-0.10.1"
+  },
+  {
+    "ecosystem": "cargo",
+    "name": "rand_pcg",
+    "version": "0.10.2",
+    "license": "MIT OR Apache-2.0",
+    "source": "https://crates.io/api/v1/crates/rand_pcg/0.10.2/download",
+    "repository": "https://github.com/rust-random/rngs",
+    "licenseDirectory": "licenses/cargo-rand_pcg-0.10.2"
   },
   {
     "ecosystem": "cargo",
@@ -1553,12 +1949,30 @@
   },
   {
     "ecosystem": "cargo",
+    "name": "reqwest",
+    "version": "0.13.5",
+    "license": "MIT OR Apache-2.0",
+    "source": "https://crates.io/api/v1/crates/reqwest/0.13.5/download",
+    "repository": "https://github.com/seanmonstar/reqwest",
+    "licenseDirectory": "licenses/cargo-reqwest-0.13.5"
+  },
+  {
+    "ecosystem": "cargo",
     "name": "rfd",
     "version": "0.17.2",
     "license": "MIT",
     "source": "https://crates.io/api/v1/crates/rfd/0.17.2/download",
     "repository": "https://github.com/PolyMeilex/rfd",
     "licenseDirectory": "licenses/cargo-rfd-0.17.2"
+  },
+  {
+    "ecosystem": "cargo",
+    "name": "ring",
+    "version": "0.17.14",
+    "license": "Apache-2.0 AND ISC",
+    "source": "https://crates.io/api/v1/crates/ring/0.17.14/download",
+    "repository": "https://github.com/briansmith/ring",
+    "licenseDirectory": "licenses/cargo-ring-0.17.14"
   },
   {
     "ecosystem": "cargo",
@@ -1595,6 +2009,51 @@
     "source": "https://crates.io/api/v1/crates/rustix/1.1.6/download",
     "repository": "https://github.com/bytecodealliance/rustix",
     "licenseDirectory": "licenses/cargo-rustix-1.1.6"
+  },
+  {
+    "ecosystem": "cargo",
+    "name": "rustls",
+    "version": "0.23.46",
+    "license": "Apache-2.0 OR ISC OR MIT",
+    "source": "https://crates.io/api/v1/crates/rustls/0.23.46/download",
+    "repository": "https://github.com/rustls/rustls",
+    "licenseDirectory": "licenses/cargo-rustls-0.23.46"
+  },
+  {
+    "ecosystem": "cargo",
+    "name": "rustls-pki-types",
+    "version": "1.15.1",
+    "license": "MIT OR Apache-2.0",
+    "source": "https://crates.io/api/v1/crates/rustls-pki-types/1.15.1/download",
+    "repository": "https://github.com/rustls/pki-types",
+    "licenseDirectory": "licenses/cargo-rustls-pki-types-1.15.1"
+  },
+  {
+    "ecosystem": "cargo",
+    "name": "rustls-platform-verifier",
+    "version": "0.7.1",
+    "license": "MIT OR Apache-2.0",
+    "source": "https://crates.io/api/v1/crates/rustls-platform-verifier/0.7.1/download",
+    "repository": "https://github.com/rustls/rustls-platform-verifier",
+    "licenseDirectory": "licenses/cargo-rustls-platform-verifier-0.7.1"
+  },
+  {
+    "ecosystem": "cargo",
+    "name": "rustls-webpki",
+    "version": "0.103.16",
+    "license": "ISC",
+    "source": "https://crates.io/api/v1/crates/rustls-webpki/0.103.16/download",
+    "repository": "https://github.com/rustls/webpki",
+    "licenseDirectory": "licenses/cargo-rustls-webpki-0.103.16"
+  },
+  {
+    "ecosystem": "cargo",
+    "name": "rustversion",
+    "version": "1.0.23",
+    "license": "MIT OR Apache-2.0",
+    "source": "https://crates.io/api/v1/crates/rustversion/1.0.23/download",
+    "repository": "https://github.com/dtolnay/rustversion",
+    "licenseDirectory": "licenses/cargo-rustversion-1.0.23"
   },
   {
     "ecosystem": "cargo",
@@ -1833,12 +2292,30 @@
   },
   {
     "ecosystem": "cargo",
+    "name": "simdutf8",
+    "version": "0.1.5",
+    "license": "MIT OR Apache-2.0",
+    "source": "https://crates.io/api/v1/crates/simdutf8/0.1.5/download",
+    "repository": "https://github.com/rusticstuff/simdutf8",
+    "licenseDirectory": "licenses/cargo-simdutf8-0.1.5"
+  },
+  {
+    "ecosystem": "cargo",
     "name": "siphasher",
     "version": "1.0.4",
     "license": "MIT OR Apache-2.0",
     "source": "https://crates.io/api/v1/crates/siphasher/1.0.4/download",
     "repository": "https://github.com/jedisct1/rust-siphash",
     "licenseDirectory": "licenses/cargo-siphasher-1.0.4"
+  },
+  {
+    "ecosystem": "cargo",
+    "name": "slab",
+    "version": "0.4.12",
+    "license": "MIT",
+    "source": "https://crates.io/api/v1/crates/slab/0.4.12/download",
+    "repository": "https://github.com/tokio-rs/slab",
+    "licenseDirectory": "licenses/cargo-slab-0.4.12"
   },
   {
     "ecosystem": "cargo",
@@ -1905,6 +2382,15 @@
   },
   {
     "ecosystem": "cargo",
+    "name": "subtle",
+    "version": "2.6.1",
+    "license": "BSD-3-Clause",
+    "source": "https://crates.io/api/v1/crates/subtle/2.6.1/download",
+    "repository": "https://github.com/dalek-cryptography/subtle",
+    "licenseDirectory": "licenses/cargo-subtle-2.6.1"
+  },
+  {
+    "ecosystem": "cargo",
     "name": "swift-rs",
     "version": "1.0.9",
     "license": "MIT OR Apache-2.0",
@@ -1929,6 +2415,15 @@
     "source": "https://crates.io/api/v1/crates/syn/3.0.9/download",
     "repository": "https://github.com/dtolnay/syn",
     "licenseDirectory": "licenses/cargo-syn-3.0.9"
+  },
+  {
+    "ecosystem": "cargo",
+    "name": "sync_wrapper",
+    "version": "1.0.2",
+    "license": "Apache-2.0",
+    "source": "https://crates.io/api/v1/crates/sync_wrapper/1.0.2/download",
+    "repository": "https://github.com/Actyx/sync_wrapper",
+    "licenseDirectory": "licenses/cargo-sync_wrapper-1.0.2"
   },
   {
     "ecosystem": "cargo",
@@ -2176,6 +2671,24 @@
   },
   {
     "ecosystem": "cargo",
+    "name": "tokio-rustls",
+    "version": "0.26.6",
+    "license": "MIT OR Apache-2.0",
+    "source": "https://crates.io/api/v1/crates/tokio-rustls/0.26.6/download",
+    "repository": "https://github.com/rustls/tokio-rustls",
+    "licenseDirectory": "licenses/cargo-tokio-rustls-0.26.6"
+  },
+  {
+    "ecosystem": "cargo",
+    "name": "tokio-util",
+    "version": "0.7.20",
+    "license": "MIT",
+    "source": "https://crates.io/api/v1/crates/tokio-util/0.7.20/download",
+    "repository": "https://github.com/tokio-rs/tokio",
+    "licenseDirectory": "licenses/cargo-tokio-util-0.7.20"
+  },
+  {
+    "ecosystem": "cargo",
     "name": "toml",
     "version": "1.1.8+spec-1.1.0",
     "license": "MIT OR Apache-2.0",
@@ -2209,6 +2722,42 @@
     "source": "https://crates.io/api/v1/crates/toml_writer/1.1.3+spec-1.1.0/download",
     "repository": "https://github.com/toml-rs/toml",
     "licenseDirectory": "licenses/cargo-toml_writer-1.1.3+spec-1.1.0"
+  },
+  {
+    "ecosystem": "cargo",
+    "name": "tower",
+    "version": "0.5.3",
+    "license": "MIT",
+    "source": "https://crates.io/api/v1/crates/tower/0.5.3/download",
+    "repository": "https://github.com/tower-rs/tower",
+    "licenseDirectory": "licenses/cargo-tower-0.5.3"
+  },
+  {
+    "ecosystem": "cargo",
+    "name": "tower-http",
+    "version": "0.6.11",
+    "license": "MIT",
+    "source": "https://crates.io/api/v1/crates/tower-http/0.6.11/download",
+    "repository": "https://github.com/tower-rs/tower-http",
+    "licenseDirectory": "licenses/cargo-tower-http-0.6.11"
+  },
+  {
+    "ecosystem": "cargo",
+    "name": "tower-layer",
+    "version": "0.3.3",
+    "license": "MIT",
+    "source": "https://crates.io/api/v1/crates/tower-layer/0.3.3/download",
+    "repository": "https://github.com/tower-rs/tower",
+    "licenseDirectory": "licenses/cargo-tower-layer-0.3.3"
+  },
+  {
+    "ecosystem": "cargo",
+    "name": "tower-service",
+    "version": "0.3.3",
+    "license": "MIT",
+    "source": "https://crates.io/api/v1/crates/tower-service/0.3.3/download",
+    "repository": "https://github.com/tower-rs/tower",
+    "licenseDirectory": "licenses/cargo-tower-service-0.3.3"
   },
   {
     "ecosystem": "cargo",
@@ -2248,6 +2797,24 @@
   },
   {
     "ecosystem": "cargo",
+    "name": "try-lock",
+    "version": "0.2.5",
+    "license": "MIT",
+    "source": "https://crates.io/api/v1/crates/try-lock/0.2.5/download",
+    "repository": "https://github.com/seanmonstar/try-lock",
+    "licenseDirectory": "licenses/cargo-try-lock-0.2.5"
+  },
+  {
+    "ecosystem": "cargo",
+    "name": "typed-path",
+    "version": "0.13.0",
+    "license": "MIT OR Apache-2.0",
+    "source": "https://crates.io/api/v1/crates/typed-path/0.13.0/download",
+    "repository": "https://github.com/chipsenkbeil/typed-path",
+    "licenseDirectory": "licenses/cargo-typed-path-0.13.0"
+  },
+  {
+    "ecosystem": "cargo",
     "name": "typeid",
     "version": "1.0.3",
     "license": "MIT OR Apache-2.0",
@@ -2266,12 +2833,39 @@
   },
   {
     "ecosystem": "cargo",
+    "name": "unicase",
+    "version": "2.10.0",
+    "license": "MIT OR Apache-2.0",
+    "source": "https://crates.io/api/v1/crates/unicase/2.10.0/download",
+    "repository": "https://github.com/seanmonstar/unicase",
+    "licenseDirectory": "licenses/cargo-unicase-2.10.0"
+  },
+  {
+    "ecosystem": "cargo",
     "name": "unicode-ident",
     "version": "1.0.27",
     "license": "(MIT OR Apache-2.0) AND Unicode-3.0",
     "source": "https://crates.io/api/v1/crates/unicode-ident/1.0.27/download",
     "repository": "https://github.com/dtolnay/unicode-ident",
     "licenseDirectory": "licenses/cargo-unicode-ident-1.0.27"
+  },
+  {
+    "ecosystem": "cargo",
+    "name": "unicode-width",
+    "version": "0.2.3",
+    "license": "MIT OR Apache-2.0",
+    "source": "https://crates.io/api/v1/crates/unicode-width/0.2.3/download",
+    "repository": "https://github.com/unicode-rs/unicode-width",
+    "licenseDirectory": "licenses/cargo-unicode-width-0.2.3"
+  },
+  {
+    "ecosystem": "cargo",
+    "name": "untrusted",
+    "version": "0.9.0",
+    "license": "ISC",
+    "source": "https://crates.io/api/v1/crates/untrusted/0.9.0/download",
+    "repository": "https://github.com/briansmith/untrusted",
+    "licenseDirectory": "licenses/cargo-untrusted-0.9.0"
   },
   {
     "ecosystem": "cargo",
@@ -2335,6 +2929,15 @@
     "source": "https://crates.io/api/v1/crates/walkdir/2.5.0/download",
     "repository": "https://github.com/BurntSushi/walkdir",
     "licenseDirectory": "licenses/cargo-walkdir-2.5.0"
+  },
+  {
+    "ecosystem": "cargo",
+    "name": "want",
+    "version": "0.3.2",
+    "license": "MIT",
+    "source": "https://crates.io/api/v1/crates/want/0.3.2/download",
+    "repository": "https://github.com/seanmonstar/want",
+    "licenseDirectory": "licenses/cargo-want-0.3.2"
   },
   {
     "ecosystem": "cargo",
@@ -2455,6 +3058,15 @@
   },
   {
     "ecosystem": "cargo",
+    "name": "zeroize",
+    "version": "1.9.1",
+    "license": "Apache-2.0 OR MIT",
+    "source": "https://crates.io/api/v1/crates/zeroize/1.9.1/download",
+    "repository": "https://github.com/RustCrypto/utils",
+    "licenseDirectory": "licenses/cargo-zeroize-1.9.1"
+  },
+  {
+    "ecosystem": "cargo",
     "name": "zerotrie",
     "version": "0.2.5",
     "license": "Unicode-3.0",
@@ -2482,6 +3094,15 @@
   },
   {
     "ecosystem": "cargo",
+    "name": "zip",
+    "version": "9.1.3",
+    "license": "MIT",
+    "source": "https://crates.io/api/v1/crates/zip/9.1.3/download",
+    "repository": "https://github.com/zip-rs/zip2",
+    "licenseDirectory": "licenses/cargo-zip-9.1.3"
+  },
+  {
+    "ecosystem": "cargo",
     "name": "zlib-rs",
     "version": "0.6.8",
     "license": "Zlib",
@@ -2497,6 +3118,15 @@
     "source": "https://crates.io/api/v1/crates/zmij/1.0.23/download",
     "repository": "https://github.com/dtolnay/zmij",
     "licenseDirectory": "licenses/cargo-zmij-1.0.23"
+  },
+  {
+    "ecosystem": "cargo",
+    "name": "zopfli",
+    "version": "0.8.4",
+    "license": "Apache-2.0",
+    "source": "https://crates.io/api/v1/crates/zopfli/0.8.4/download",
+    "repository": "https://github.com/zopfli-rs/zopfli",
+    "licenseDirectory": "licenses/cargo-zopfli-0.8.4"
   },
   {
     "ecosystem": "cargo",

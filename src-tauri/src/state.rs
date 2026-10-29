@@ -15,6 +15,7 @@ pub struct AppState {
     pub can_close: AtomicBool,
     pub close_pending: AtomicBool,
     pub close_attempt: AtomicU64,
+    pub library_epoch: AtomicU64,
 }
 
 pub fn trusted(window: &WebviewWindow) -> Result<(), String> {

@@ -103,7 +103,38 @@ pub fn comparison_step(
     }
     match action.as_str() {
         "phase" => Ok(json!(state.phase)),
-        "clipboard_available" => Ok(json!(state.clipboard.lock().map_err(|e| e.to_string())?.is_some())),
+        "library_fixture" => {
+            let mut buffer = std::io::Cursor::new(Vec::new());
+            image::DynamicImage::new_rgb8(4, 4)
+                .write_to(&mut buffer, image::ImageFormat::Png)
+                .map_err(|e| e.to_string())?;
+            let asset = crate::store::assets::Asset::from_bytes(buffer.into_inner())?;
+            let app_state = app.state::<AppState>();
+            let mut store = app_state.lock()?;
+            store.put_asset(&asset)?;
+            let source = url::Url::parse("https://example.com/feed.xml").unwrap();
+            let parsed = crate::feed_parse::parse(br#"<rss version="2.0"><channel><title>Native test feed</title><link>https://example.com</link><description>Fixture</description><item><title>Subscription article</title><link>https://example.com/rss-article</link><description>Offline subscription content</description></item></channel></rss>"#, &source)?;
+            store.add_feed(source.as_str(), parsed)?;
+            Ok(json!(format!("assets/{}", asset.name)))
+        }
+        "full_backup_roundtrip" => {
+            let app_state = app.state::<AppState>();
+            let mut store = app_state.lock()?;
+            let before = store.snapshot()?;
+            let library = store.library()?;
+            let backup = store.export_full_backup()?;
+            store.restore_full_backup(&backup)?;
+            if before != store.snapshot()? || library != store.library()? {
+                return Err("Full backup roundtrip changed content".into());
+            }
+            Ok(json!(true))
+        }
+
+        "clipboard_available" => Ok(json!(state
+            .clipboard
+            .lock()
+            .map_err(|e| e.to_string())?
+            .is_some())),
         "clipboard_begin" => {
             state.clipboard_dirty.store(true, Ordering::SeqCst);
             Ok(Value::Null)
@@ -197,7 +228,9 @@ fn restore_clipboard(app: &AppHandle) -> Result<(), String> {
     if state.clipboard_dirty.swap(false, Ordering::SeqCst) {
         // Plugins release native resources before the final Exit callback; restore only before requesting exit.
         if let Some(previous) = state.clipboard.lock().map_err(|e| e.to_string())?.take() {
-            app.clipboard().write_text(previous).map_err(|e| e.to_string())?;
+            app.clipboard()
+                .write_text(previous)
+                .map_err(|e| e.to_string())?;
         }
     }
     Ok(())

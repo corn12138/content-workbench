@@ -1,8 +1,15 @@
+pub mod archive;
+pub mod assets;
 mod backup;
 #[cfg(test)]
 mod backup_tests;
 mod backup_validation;
 mod drafts;
+pub mod feed_models;
+mod feeds;
+mod full_backup;
+mod library_schema;
+pub mod media;
 pub mod models;
 mod records;
 #[cfg(test)]
@@ -35,7 +42,7 @@ impl WorkbenchStore {
         let version: i64 = connection
             .query_row("PRAGMA user_version", [], |r| r.get(0))
             .map_err(|e| e.to_string())?;
-        if !matches!(version, 0 | 1) {
+        if !matches!(version, 0 | 1 | 2) {
             return Err("资料来自更新版本的应用，请升级后打开。".into());
         }
         if version == 0 {
@@ -51,7 +58,7 @@ impl WorkbenchStore {
                 CREATE TABLE readings (id TEXT PRIMARY KEY, url TEXT NOT NULL UNIQUE, payload TEXT NOT NULL);
                 PRAGMA user_version=1; COMMIT;").map_err(|e| e.to_string())?;
         }
-        // A current Electron database is opened as-is; schema changes require an explicit future migration.
+        // Validate the old core before upgrading; unknown or incomplete databases must stay untouched.
         for sql in [
             "SELECT id,body_hash,payload FROM drafts LIMIT 0",
             "SELECT draft_id,revision,payload FROM revisions LIMIT 0",
@@ -61,6 +68,16 @@ impl WorkbenchStore {
             connection
                 .prepare(sql)
                 .map_err(|_| "本地资料结构不完整，未迁移。".to_string())?;
+        }
+        library_schema::upgrade(&connection, &directory, version)?;
+        for sql in [
+            "SELECT name,mime,bytes FROM assets LIMIT 0",
+            "SELECT id,url,payload FROM feeds LIMIT 0",
+            "SELECT feed_id,item_key,reading_id,payload FROM feed_items LIMIT 0",
+        ] {
+            connection
+                .prepare(sql)
+                .map_err(|_| "本地图片或订阅资料结构不完整。".to_string())?;
         }
         connection
             .execute_batch(
@@ -119,21 +136,45 @@ impl WorkbenchStore {
         &mut self,
         operation: impl FnOnce(&mut Self) -> Result<T, String>,
     ) -> Result<T, String> {
+        // Resource import composes existing draft writes; savepoints keep the entire article atomic.
+        let nested = !self.connection.is_autocommit();
+        let name = format!("change_{}", uuid::Uuid::new_v4().simple());
+        let begin = if nested {
+            format!("SAVEPOINT {name}")
+        } else {
+            "BEGIN IMMEDIATE".into()
+        };
+        let commit = if nested {
+            format!("RELEASE {name}")
+        } else {
+            "COMMIT".into()
+        };
+        let rollback = if nested {
+            format!("ROLLBACK TO {name}; RELEASE {name}")
+        } else {
+            "ROLLBACK".into()
+        };
         self.connection
-            .execute_batch("BEGIN IMMEDIATE")
+            .execute_batch(&begin)
             .map_err(|e| e.to_string())?;
         match operation(self) {
-            Ok(value) => match self.connection.execute_batch("COMMIT") {
+            Ok(value) => match self.connection.execute_batch(&commit) {
                 Ok(()) => Ok(value),
                 Err(error) => {
-                    let _ = self.connection.execute_batch("ROLLBACK");
+                    let _ = self.connection.execute_batch(&rollback);
                     Err(error.to_string())
                 }
             },
             Err(error) => {
-                let _ = self.connection.execute_batch("ROLLBACK");
+                let _ = self.connection.execute_batch(&rollback);
                 Err(error)
             }
         }
     }
 }
+
+#[cfg(test)]
+mod library_tests;
+
+#[cfg(test)]
+mod feed_tests;

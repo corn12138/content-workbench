@@ -125,3 +125,13 @@ pub fn info(
         "platform":std::env::consts::OS, "mode":"desktop" }),
     )
 }
+
+#[tauri::command]
+pub fn asset_data(
+    window: WebviewWindow,
+    state: State<AppState>,
+    name: String,
+) -> Result<String, String> {
+    trusted(&window)?;
+    state.lock()?.asset_data_url(&name)
+}

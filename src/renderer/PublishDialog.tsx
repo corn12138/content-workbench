@@ -89,7 +89,7 @@ export function PublishDialog({
           </p>
           {/!\[|<img\b/i.test(draft.body) && (
             <p className="notice">
-              这篇文章包含图片。当前版本只复制文字，请在掘金检查并补充图片。
+              这篇文章包含图片。复制正文不会上传图片，请在掘金补充；可从稿件“更多 → 导出文章”取出已保存的图片。
             </p>
           )}
           {sensitive && (
