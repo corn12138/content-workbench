@@ -4,20 +4,20 @@
 
 A local-first desktop workspace for developer writing, assisted publishing and reading notes. Built with Tauri 2, Rust and React. No AI service or account is required for the local workflow.
 
-**开发分支：0.2.0-dev.1**，新增图片、完整备份和 RSS 阅读；当前公开下载仍为 **0.1.0**。已验证平台为 macOS Apple Silicon；Windows、Linux 和 Intel Mac 尚未验收。
+**0.2.0 开发者预览版**，支持图片随稿保存、完整备份和 RSS 阅读。已验证平台为 macOS Apple Silicon；Windows、Linux 和 Intel Mac 尚未验收。
 
 ## 下载与开始
 
-从 [Releases](https://github.com/corn12138/content-workbench/releases) 下载 `content-workbench-0.1.0-macos-arm64.zip`，解压后将「内容工作台.app」放入应用程序目录并打开。
+从 [Releases](https://github.com/corn12138/content-workbench/releases) 下载 `content-workbench-0.2.0-macos-arm64.zip`，解压后将「内容工作台.app」放入应用程序目录并打开。
 
-首版未使用 Apple Developer ID 签名或公证，macOS 可能阻止首次打开。请先核对下载来源和发行页 SHA-256；确认信任后可在系统设置的「隐私与安全性」中使用系统提供的打开选项。不要关闭系统全局安全保护；不希望运行未公证应用时，可按下方步骤从源码构建。
+当前版本未使用 Apple Developer ID 签名或公证，macOS 可能阻止首次打开。请先核对下载来源和发行页 SHA-256；确认信任后可在系统设置的「隐私与安全性」中使用系统提供的打开选项。不要关闭系统全局安全保护；不希望运行未公证应用时，可按下方步骤从源码构建。
 
 1. 在「稿件」新建或导入 Markdown，编辑会自动保存。
 2. 审核后使用掘金辅助发布，复制正文并打开平台，完成发布后回填文章链接。
 3. 在「阅读」保存链接和笔记，将笔记转为带来源的草稿。
 4. 在设置中备份资料；恢复前应用会保存当前资料的恢复副本。
 
-## 当前源码能力（0.2 开发版）
+## 当前能力
 
 - Markdown 导入时自动保存文章目录内的图片，支持插入图片、正文去重、新建、搜索、归档和恢复。
 - 编辑自动保存、历史版本和版本恢复，切页及退出前等待保存。
@@ -63,6 +63,8 @@ Tauri 正式应用资料在 `~/Library/Application Support/local.contentworkbenc
 Electron 源码和构建入口继续保留：`npm run dev:electron`、`npm run package:electron`。首发下载包仅提供 Tauri；需要回退时可从源码构建 Electron。构建回退包时也应保留其运行时的第三方许可证。
 
 图片支持 PNG、JPEG、GIF 和 WebP，单张不超过 10 MB，总量不超过 128 MB（最多 512 张）。订阅最多同时启用 50 个来源，每次取最近最多 200 条、总关联条目上限 20,000，订阅缓存上限 96 MB；仅在添加和点击更新时联网。RSS 显示源站提供的纯文本内容，完整排版与未提供的正文请打开原文。
+
+回退步骤见[升级与回退](docs/upgrade-and-rollback.md)。[0.1.0 下载](https://github.com/corn12138/content-workbench/releases/tag/v0.1.0)继续保留。
 
 ## 参与与文档
 

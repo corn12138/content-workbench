@@ -588,7 +588,7 @@ dependencies = [
 
 [[package]]
 name = "content-workbench-tauri"
-version = "0.2.0-dev.1"
+version = "0.2.0"
 dependencies = [
  "base64 0.22.1",
  "chrono",

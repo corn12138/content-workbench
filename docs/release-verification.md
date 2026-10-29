@@ -14,7 +14,7 @@ npm run smoke:tauri
 npm run release:mac
 ```
 
-数据对照在独立临时目录创建非空稿件、历史、发布记录和阅读笔记，验证两版 SQLite 与 v1 JSON 的双向兼容。异常备份必须拒绝且保持原资料。实际用户资料不作为公开测试样本。
+数据对照在独立临时目录创建非空稿件、历史、发布记录和阅读笔记，验证旧版 SQLite 升级及 v1 JSON 的双向核心数据兼容；旧 Electron 必须拒绝直接打开 schema 2。异常备份必须拒绝且保持原资料。实际用户资料不作为公开测试样本。
 
 原生桌面验收覆盖编辑、导航、脚本隔离、人工发布记录、阅读笔记转稿、窄窗口和关闭保存。调试冒烟不能替代正式应用包的启动与持久化检查；首次公开包还需手动打开正式包确认。
 
@@ -50,3 +50,9 @@ gitleaks git . --log-opts='--all --full-history' --redact --ignore-gitleaks-allo
 - npm audit 为 0 项告警。cargo-audit 漏洞类告警为 0；完整跨平台锁文件另有 4 项 unmaintained 和 1 项 unsound 提示。
 
 Rust 提示对应 `proc-macro-error`、`zbus_names`、`zvariant`、`zvariant_derive` 和 `glib`，均不在 `cargo metadata --filter-platform aarch64-apple-darwin` 的已解析依赖图内。`glib` 的问题记录为 [RUSTSEC-2024-0429](https://rustsec.org/advisories/RUSTSEC-2024-0429.html)。这些提示仍需在后续 Linux 支持前处理，不将“漏洞类告警为 0”描述成所有目标都没有依赖问题。
+
+## 0.2.0 发行范围
+
+图片、完整备份和 RSS 功能实测见 [功能验收记录](media-backup-rss-verification.md)。正式包使用 0.2.0 版本号重新构建，源码和安装包须分别完成秘密、个人路径、文件清单与授权声明检查，上传后重新下载校验。
+
+保留 v0.1.0 标签、下载资产及 Electron 入口；资料格式的回退步骤见 [升级与回退](upgrade-and-rollback.md)。
