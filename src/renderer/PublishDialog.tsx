@@ -2,6 +2,9 @@ import { useEffect, useRef, useState } from "react";
 import { Copy, ExternalLink, X, Check } from "lucide-react";
 import type { Draft } from "../shared/contracts";
 import { api, errorMessage } from "./api";
+import { XPublish } from "./publishing/XPublish";
+import { sensitiveText } from "./publishing/text";
+import "./publishing/publishing.css";
 import { Markdown } from "./Markdown";
 
 export function PublishDialog({
@@ -20,10 +23,8 @@ export function PublishDialog({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [copied, setCopied] = useState(false);
-  const sensitive =
-    /(?:sk-[A-Za-z0-9_-]{20,}|-----BEGIN [A-Z ]*PRIVATE KEY-----|(?:api[_-]?key|password|token)\s*[:=]\s*["'][^"']{8,}["'])/i.test(
-      draft.body,
-    );
+  const [platform, setPlatform] = useState<"juejin" | "x">("juejin");
+  const sensitive = sensitiveText(`${draft.title}\n${draft.body}`);
   const [acknowledged, setAcknowledged] = useState(false);
   const canCopy = !sensitive || acknowledged;
   useEffect(() => {
@@ -34,9 +35,13 @@ export function PublishDialog({
     setError("");
     try {
       if (
-        !/^https:\/\/juejin\.cn\/post\/[0-9]+\/?(?:[?#].*)?$/.test(url.trim())
+        !(
+          platform === "juejin"
+            ? /^https:\/\/juejin\.cn\/post\/[0-9]+\/?(?:[?#].*)?$/
+            : /^https:\/\/x\.com\/[A-Za-z0-9_]{1,15}\/status\/[0-9]+\/?(?:[?#].*)?$/
+        ).test(url.trim())
       )
-        throw new Error("请粘贴掘金文章的完整链接。");
+        throw new Error("请粘贴所选平台作品的完整链接。");
       await api.recordPublication(draft.id, draft.revision, url);
       await onRecorded();
       notify("发布链接已记录，来源为人工确认");
@@ -74,72 +79,127 @@ export function PublishDialog({
       <div className="publish-layout">
         <div className="publish-preview">
           <h2>{draft.title || "未命名稿件"}</h2>
+          <p className="muted small">
+            {platform === "x"
+              ? "原稿参考，实际发布内容请查看右侧短帖。"
+              : "本地排版预览，最终效果请在掘金发布页核对。"}
+          </p>
           <Markdown text={draft.body} />
         </div>
         <aside className="publish-actions">
-          <div className="platform-heading">
-            <span className="platform-icon">掘</span>
-            <div>
-              <strong>掘金</strong>
-              <p>在原平台完成发布</p>
-            </div>
+          <div className="platform-tabs" aria-label="选择发布平台">
+            <button
+              className={`button ${platform === "juejin" ? "primary" : ""}`}
+              disabled={busy}
+              onClick={() => {
+                setPlatform("juejin");
+                setURL("");
+                setError("");
+              }}
+            >
+              掘金
+            </button>
+            <button
+              className={`button ${platform === "x" ? "primary" : ""}`}
+              disabled={busy}
+              onClick={() => {
+                setPlatform("x");
+                setURL("");
+                setError("");
+              }}
+            >
+              X
+            </button>
           </div>
-          <p className="muted">
-            正文已经准备好。复制后打开掘金，选择分类、补充图片并发布。
-          </p>
-          {/!\[|<img\b/i.test(draft.body) && (
-            <p className="notice">
-              这篇文章包含图片。复制正文不会上传图片，请在掘金补充；可从稿件“更多 → 导出文章”取出已保存的图片。
-            </p>
+          {platform === "x" ? (
+            api.xPublish ? (
+              <XPublish
+                draft={draft}
+                onRecorded={onRecorded}
+                onBusy={setBusy}
+                notify={notify}
+              />
+            ) : (
+              <p>X 授权与发布请使用 Tauri 版。</p>
+            )
+          ) : (
+            <>
+              <div className="platform-heading">
+                <span className="platform-icon">掘</span>
+                <div>
+                  <strong>掘金</strong>
+                  <p>在原平台完成发布</p>
+                </div>
+              </div>
+              <p className="muted">
+                点击下方按钮即可复制正文并打开掘金。沿用浏览器登录状态，选择分类、补充图片后发布。
+              </p>
+              {/!\[|<img\b/i.test(draft.body) && (
+                <p className="notice">
+                  这篇文章包含图片。复制正文不会上传图片，请在掘金补充；可从稿件“更多
+                  → 导出文章”取出已保存的图片。
+                </p>
+              )}
+              {sensitive && (
+                <div className="notice warning">
+                  <strong>正文可能包含密钥或密码</strong>
+                  <p>请核对原文。此检查无法发现所有敏感信息。</p>
+                  <label>
+                    <input
+                      type="checkbox"
+                      checked={acknowledged}
+                      onChange={(e) => setAcknowledged(e.target.checked)}
+                    />
+                    我已确认这些内容可以公开
+                  </label>
+                </div>
+              )}
+              <button
+                className="button"
+                disabled={!canCopy}
+                onClick={() =>
+                  void api
+                    .copyText(draft.body)
+                    .then(() => setCopied(true))
+                    .catch((e) => setError(errorMessage(e)))
+                }
+              >
+                {copied ? <Check size={16} /> : <Copy size={16} />}
+                {copied ? "正文已复制" : "复制正文"}
+              </button>
+              <button
+                className="button primary"
+                disabled={!canCopy}
+                onClick={() =>
+                  void api
+                    .copyText(draft.body)
+                    .then(() => {
+                      setCopied(true);
+                      return api.openExternal(
+                        "https://juejin.cn/editor/drafts/new?v=2",
+                      );
+                    })
+                    .catch((e) => setError(errorMessage(e)))
+                }
+              >
+                <ExternalLink size={16} />
+                复制并打开掘金
+              </button>
+            </>
           )}
-          {sensitive && (
-            <div className="notice warning">
-              <strong>正文可能包含密钥或密码</strong>
-              <p>请核对原文。此检查无法发现所有敏感信息。</p>
-              <label>
-                <input
-                  type="checkbox"
-                  checked={acknowledged}
-                  onChange={(e) => setAcknowledged(e.target.checked)}
-                />
-                我已确认这些内容可以公开
-              </label>
-            </div>
-          )}
-          <button
-            className="button"
-            disabled={!canCopy}
-            onClick={() =>
-              void api
-                .copyText(draft.body)
-                .then(() => setCopied(true))
-                .catch((e) => setError(errorMessage(e)))
-            }
-          >
-            {copied ? <Check size={16} /> : <Copy size={16} />}
-            {copied ? "正文已复制" : "复制正文"}
-          </button>
-          <button
-            className="button primary"
-            disabled={!canCopy}
-            onClick={() =>
-              void api
-                .openExternal("https://juejin.cn/editor/drafts/new?v=2")
-                .catch((e) => setError(errorMessage(e)))
-            }
-          >
-            <ExternalLink size={16} />
-            打开掘金发布
-          </button>
           <div className="record-link">
             <label className="field">
               发布后，把文章链接粘贴到这里
               <input
                 className="input"
-                aria-label="已发布的掘金文章链接"
+                aria-label="已发布的作品链接"
                 value={url}
                 onChange={(e) => setURL(e.target.value)}
-                placeholder="https://juejin.cn/post/…"
+                placeholder={
+                  platform === "juejin"
+                    ? "https://juejin.cn/post/…"
+                    : "https://x.com/用户名/status/…"
+                }
               />
             </label>
             <button
@@ -157,8 +217,11 @@ export function PublishDialog({
             </p>
           )}
           <div className="coming-platform">
-            <strong>X</strong>
-            <p>自动发布将在账号授权与预算验证后开放。当前不会向 X 发送内容。</p>
+            <p>
+              {platform === "juejin"
+                ? "登录由掘金网页处理，工作台不读取你的密码或 Cookie。"
+                : "授权凭证不会进入文章、资料备份或开源代码。"}
+            </p>
           </div>
         </aside>
       </div>

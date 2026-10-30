@@ -3,8 +3,10 @@ mod feed_commands;
 pub mod feed_fetch;
 pub mod feed_parse;
 mod files;
+mod image_preview;
 mod lifecycle;
 mod migration;
+mod publishing;
 #[cfg(debug_assertions)]
 mod smoke;
 mod state;
@@ -18,6 +20,7 @@ use tauri::Manager;
 
 pub fn run() {
     let app = tauri::Builder::default()
+        .manage(publishing::PublishingState::default())
         .plugin(tauri_plugin_single_instance::init(|app, _, _| {
             if let Some(window) = app.get_webview_window("main") {
                 let _ = window.show();
@@ -28,6 +31,11 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_clipboard_manager::init())
         .invoke_handler(tauri::generate_handler![
+            publishing::x_account,
+            publishing::x_connect,
+            publishing::x_cancel,
+            publishing::x_disconnect,
+            publishing::x_publish,
             commands::snapshot,
             commands::save_draft,
             commands::archive_draft,
@@ -46,6 +54,7 @@ pub fn run() {
             files::restore_backup,
             files::insert_image,
             commands::asset_data,
+            image_preview::remote_image_preview,
             feed_commands::library,
             feed_commands::add_feed,
             feed_commands::refresh_feed,

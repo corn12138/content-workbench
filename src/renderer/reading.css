@@ -390,3 +390,30 @@
     margin-right: 22px;
   }
 }
+.reading-search {
+  padding: 16px 16px 0;
+  display: grid;
+  gap: 10px;
+}
+.reading-item-excerpt {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  font-size: 12px;
+  line-height: 1.7;
+  color: #778478;
+  font-weight: normal;
+}
+.reading-preview-text {
+  margin: 12px 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-size: 14px;
+  line-height: 1.9;
+  max-height: 290px;
+  overflow: auto;
+}
+.reading-preview-text.expanded {
+  max-height: none;
+}

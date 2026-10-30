@@ -126,7 +126,7 @@ fn valid_shape(backup: &Backup) -> bool {
                 && validation::schema_within(&p.title, 200)
                 && validation::schema_within(&p.url, 4096)
                 && matches!(p.platform.as_str(), "juejin" | "x")
-                && p.confirmation == "manual"
+                && matches!(p.confirmation.as_str(), "manual" | "api")
                 && validation::timestamp(&p.confirmed_at)
         })
         && backup.readings.iter().all(|r| {

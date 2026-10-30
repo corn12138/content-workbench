@@ -45,8 +45,9 @@ export function FeedbackView({
                 <div className="publication-info">
                   <h3>{item.title || "未命名稿件"}</h3>
                   <p>
-                    人工确认 · {new Date(item.confirmedAt).toLocaleDateString()}{" "}
-                    · 暂未获取数据
+                    {item.confirmation === "api" ? "平台回执" : "人工确认"} ·{" "}
+                    {new Date(item.confirmedAt).toLocaleDateString()} ·
+                    暂未获取数据
                   </p>
                 </div>
                 <button

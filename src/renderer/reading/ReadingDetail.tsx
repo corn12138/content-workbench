@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { ArrowUpRight, Check, FilePlus2, RefreshCw } from "lucide-react";
 import type { Reading, FeedItem } from "../../shared/contracts";
 import { api } from "../api";
@@ -27,6 +28,8 @@ export function ReadingDetail({
   convert,
   notify,
 }: ReadingDetailProps) {
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const expanded = expandedId === record.id;
   const saveLabel = {
     saved: "已保存到本机",
     pending: "等待保存…",
@@ -75,10 +78,21 @@ export function ReadingDetail({
             {feedItem.publishedAt &&
               ` · ${new Date(feedItem.publishedAt).toLocaleDateString()}`}
           </div>
-          <p>{feedItem.summary || "订阅未提供正文，请点击“打开原文”阅读。"}</p>
+          <div className={`reading-preview-text ${expanded ? "expanded" : ""}`}>
+            {feedItem.summary || "订阅未提供正文，请点击“打开原文”阅读。"}
+          </div>
+          {feedItem.summary.length > 600 && (
+            <button
+              className="button quiet"
+              onClick={() => setExpandedId(expanded ? null : record.id)}
+            >
+              {expanded ? "收起预览" : "展开订阅内容"}
+            </button>
+          )}
           {feedItem.summary && (
             <span className="muted">
-              内容由订阅源提供，完整内容以原文为准。
+              显示订阅源提供的文字，最多 2
+              万字；不加载远程图片。完整内容以原文为准。
             </span>
           )}
         </section>

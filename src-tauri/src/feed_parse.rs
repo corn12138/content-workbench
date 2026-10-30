@@ -21,11 +21,18 @@ fn plain(value: &str, limit: usize) -> String {
     });
     static TAGS: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"<[^>]*>").unwrap());
     let inactive = ACTIVE.replace_all(value, " ");
-    let text = TAGS.replace_all(&inactive, " ");
+    static BREAKS: LazyLock<Regex> = LazyLock::new(|| {
+        Regex::new(r"(?i)</?(?:p|div|h[1-6]|li|ul|ol|pre|blockquote|section)\b[^>]*>|<br\b[^>]*>")
+            .unwrap()
+    });
+    let lines = BREAKS.replace_all(&inactive, "\n");
+    let text = TAGS.replace_all(&lines, " ");
     html_escape::decode_html_entities(&text)
-        .split_whitespace()
+        .lines()
+        .map(|line| line.split_whitespace().collect::<Vec<_>>().join(" "))
+        .filter(|line| !line.is_empty())
         .collect::<Vec<_>>()
-        .join(" ")
+        .join("\n\n")
         .chars()
         .take(limit)
         .collect()
@@ -70,10 +77,12 @@ pub fn parse(bytes: &[u8], source: &Url) -> Result<ParsedFeed, String> {
         if !seen.insert(url.clone()) {
             continue;
         }
+        // Feeds often supply a short teaser alongside full content; prefer the supplied body for offline preview.
         let summary = entry
-            .summary
-            .map(|text| text.content)
-            .or_else(|| entry.content.and_then(|content| content.body))
+            .content
+            .and_then(|content| content.body)
+            .filter(|body| !plain(body, 1).is_empty())
+            .or_else(|| entry.summary.map(|text| text.content))
             .unwrap_or_default();
         items.push(ParsedEntry {
             key: format!("{:x}", Sha256::digest(url.as_bytes())),

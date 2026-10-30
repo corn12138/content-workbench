@@ -209,3 +209,94 @@ fn schema_upgrade_keeps_independent_v1_database_and_rejects_broken_v2() {
     drop(upgraded);
     assert!(WorkbenchStore::open(directory.path().into()).is_err());
 }
+
+#[test]
+fn api_publication_survives_full_backup_without_account_credentials() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut store = super::WorkbenchStore::open(dir.path().to_path_buf()).unwrap();
+    let draft = store
+        .import_markdown("example.md", "# Example\n\nBody")
+        .unwrap()
+        .draft;
+    let publication = store
+        .record_api_publication(
+            &draft.id,
+            draft.revision,
+            "https://x.com/example/status/123",
+        )
+        .unwrap();
+    assert_eq!(publication.confirmation, "api");
+    let backup = store.export_full_backup().unwrap();
+    let other_dir = tempfile::tempdir().unwrap();
+    let mut other = super::WorkbenchStore::open(other_dir.path().to_path_buf()).unwrap();
+    other.restore_full_backup(&backup).unwrap();
+    assert_eq!(
+        other.snapshot().unwrap().publications[0].confirmation,
+        "api"
+    );
+    let files = super::archive::unpack(&backup).unwrap();
+    assert!(!String::from_utf8_lossy(&files["core.json"]).contains("access_token"));
+}
+
+#[test]
+fn publishing_upgrade_keeps_independent_schema_two_recovery() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut store = super::WorkbenchStore::open(dir.path().to_path_buf()).unwrap();
+    store
+        .import_markdown("example.md", "Body to preserve")
+        .unwrap();
+    let before = store.snapshot().unwrap();
+    store
+        .connection
+        .execute_batch("PRAGMA user_version=2")
+        .unwrap();
+    drop(store);
+    let store = super::WorkbenchStore::open(dir.path().to_path_buf()).unwrap();
+    assert_eq!(store.snapshot().unwrap(), before);
+    assert_eq!(
+        store
+            .connection
+            .query_row("PRAGMA user_version", [], |r| r.get::<_, i64>(0))
+            .unwrap(),
+        3
+    );
+    let recovery = std::fs::read_dir(dir.path())
+        .unwrap()
+        .map(|p| p.unwrap().path())
+        .find(|p| {
+            p.file_name()
+                .unwrap()
+                .to_string_lossy()
+                .starts_with("before-publishing-upgrade-")
+        })
+        .unwrap();
+    let old = rusqlite::Connection::open(recovery).unwrap();
+    assert_eq!(
+        old.query_row("PRAGMA user_version", [], |r| r.get::<_, i64>(0))
+            .unwrap(),
+        2
+    );
+    assert_eq!(
+        old.query_row("SELECT count(*) FROM drafts", [], |r| r.get::<_, i64>(0))
+            .unwrap(),
+        1
+    );
+}
+
+#[test]
+fn markdown_import_keeps_image_titles_in_tables_and_footnotes() {
+    let (_directory, mut store) = fixture();
+    let source = tempfile::tempdir().unwrap();
+    fs::write(source.path().join("image.png"), png()).unwrap();
+    let input = "| Image |\n|---|\n| ![table](image.png \"Caption\") |\n\nFootnote[^one]\n\n[^one]: ![foot](image.png \"Foot caption\")\n\n```md\n![literal](image.png)\n```";
+    let result = store
+        .import_article(&source.path().join("article.md"), input)
+        .unwrap();
+    assert!(result.draft.body.contains("\"Caption\""));
+    assert!(result.draft.body.contains("\"Foot caption\""));
+    let images = media::images(&result.draft.body);
+    assert_eq!(images.len(), 2);
+    assert_eq!(images[0].title, "Caption");
+    assert!(result.draft.body.contains("![literal](image.png)"));
+    assert_eq!(store.draft_assets(&result.draft.id).unwrap().len(), 1);
+}

@@ -80,7 +80,12 @@ pub fn on_page_load(window: &WebviewWindow) {
     eprintln!("TAURI_SMOKE_PAGE_READY {}", state.phase);
     let script = format!(
         "window.__WORKBENCH_SMOKE_PHASE__ = {phase};\n{}",
-        include_str!("../../tests/tauri-smoke.js")
+        &format!(
+            "window.__markdownFixture = {};\n{}",
+            serde_json::to_string(include_str!("../../tests/fixtures/markdown-preview.md"))
+                .unwrap(),
+            include_str!("../../tests/tauri-smoke.js")
+        )
     );
     if let Err(error) = window.eval(&script) {
         fail(window.app_handle(), error.to_string());

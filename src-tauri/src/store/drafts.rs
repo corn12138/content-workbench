@@ -20,7 +20,7 @@ pub(super) fn hash_body(body: &str) -> String {
 }
 
 impl WorkbenchStore {
-    pub(super) fn get_draft(&self, id: &str) -> Result<Draft, String> {
+    pub(crate) fn get_draft(&self, id: &str) -> Result<Draft, String> {
         validation::assert_id(id)?;
         self.one("SELECT payload FROM drafts WHERE id = ?", [id])?
             .ok_or_else(|| "这篇稿件不存在，请返回列表重新选择。".into())

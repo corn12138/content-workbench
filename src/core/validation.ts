@@ -44,7 +44,7 @@ export const publicationSchema = z
     platform: z.enum(["juejin", "x"]),
     url: z.string().max(4096),
     confirmedAt: timestamp,
-    confirmation: z.literal("manual"),
+    confirmation: z.enum(["manual", "api"]),
   })
   .strict();
 export const readingInputSchema = z

@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { Download, Upload, HardDrive, ArrowUpRight } from "lucide-react";
 import type { AppInfo } from "../shared/contracts";
+import { XConnection } from "./publishing/XConnection";
+import "./publishing/publishing.css";
 import { api, errorMessage } from "./api";
 
 export function SettingsView({
@@ -95,17 +97,15 @@ export function SettingsView({
         <div className="setting-row">
           <div>
             <strong>掘金</strong>
-            <p>支持复制正文、打开平台和记录文章链接。</p>
+            <p>复制并打开掘金，沿用系统浏览器的登录状态。</p>
           </div>
           <span className="badge">辅助发布</span>
         </div>
-        <div className="setting-row">
-          <div>
-            <strong>X</strong>
-            <p>授权和计费方式验证后开放自动发布。</p>
-          </div>
-          <span className="badge neutral">尚未接入</span>
-        </div>
+        {api.xAccount ? (
+          <XConnection />
+        ) : (
+          <p className="muted">X 授权与发布请使用 Tauri 版。</p>
+        )}
       </section>
       <section className="settings-section">
         <h2>运行方式</h2>

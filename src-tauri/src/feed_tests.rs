@@ -80,3 +80,15 @@ fn official_rust_feed_can_be_fetched() {
         _ => panic!("unexpected empty response"),
     }
 }
+
+#[test]
+fn preview_prefers_full_content_preserves_paragraphs_and_never_executes_html() {
+    let xml = br#"<rss version="2.0" xmlns:content="http://purl.org/rss/1.0/modules/content/"><channel><title>Example</title><link>https://example.com</link><description>Test</description><item><title>Post</title><link>https://example.com/post</link><description>Teaser</description><content:encoded><![CDATA[<p>First paragraph</p><p>Second paragraph</p><script>secret()</script><img src="https://example.com/tracker">]]></content:encoded></item></channel></rss>"#;
+    let parsed =
+        crate::feed_parse::parse(xml, &url::Url::parse("https://example.com/feed").unwrap())
+            .unwrap();
+    assert_eq!(
+        parsed.items[0].summary,
+        "First paragraph\n\nSecond paragraph"
+    );
+}
