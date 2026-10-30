@@ -22,6 +22,50 @@
     Object.getOwnPropertyDescriptor(prototype, "value").set.call(input, value);
     input.dispatchEvent(new Event("input", { bubbles: true }));
   };
+  // Equal-width measurements catch inherited styles that markup comparison alone cannot detect.
+  const appearance = async (container) => {
+    await document.fonts.ready;
+    const prior = container.getAttribute("style");
+    container.style.width = "340px";
+    container.style.maxWidth = "none";
+    try {
+      return [...container.querySelectorAll("*")].map(node => {
+        const style = getComputedStyle(node);
+        const rect = node.getBoundingClientRect();
+        return {
+          style: ["fontFamily", "fontSize", "fontWeight", "lineHeight", "color", "whiteSpace", "textAlign", "padding", "borderWidth", "margin", "display"].map(key => style[key]).join("|"),
+          width: rect.width, height: rect.height,
+        };
+      });
+    } finally {
+      if (prior === null) container.removeAttribute("style"); else container.setAttribute("style", prior);
+    }
+  };
+  const sameAppearance = (actual, expected, label) => {
+    assert(actual.length === expected.length, `${label}: element count differs`);
+    actual.forEach((item, index) => {
+      const other = expected[index];
+      assert(item.style === other.style && Math.abs(item.width - other.width) < 0.05 && Math.abs(item.height - other.height) < 0.05, `${label}: element ${index} differs`);
+    });
+  };
+  const diagramPixels = async (container) => Promise.all([...container.querySelectorAll(".mermaid-preview img")].map(async original => {
+    // Decode at intrinsic size, independent of WKWebView's on-screen SVG raster cache and current column width.
+    const img = new Image();
+    img.src = original.src;
+    await img.decode();
+    const canvas = document.createElement("canvas");
+    canvas.width = img.naturalWidth;
+    canvas.height = img.naturalHeight;
+    const context = canvas.getContext("2d");
+    context.drawImage(img, 0, 0, canvas.width, canvas.height);
+    assert(context.getImageData(0, 0, canvas.width, canvas.height).data.some((value, index) => index % 4 === 3 && value > 0), "Diagram image is empty");
+    return canvas.toDataURL("image/png");
+  }));
+  const diagramsReady = (container) => {
+    const diagrams = [...container.querySelectorAll(".mermaid-preview")];
+    return diagrams.length === 4 && diagrams.slice(0, 2).every(node => node.querySelector("img")?.naturalWidth > 0)
+      && diagrams.slice(2).every(node => node.textContent.includes("图表未能渲染"));
+  };
   const editor = () => document.querySelector('[aria-label="文章正文"]');
   await wait(() => !!window.workbench && document.querySelector(".nav-item"), "React and native bridge");
   const api = window.workbench;
@@ -60,7 +104,10 @@
   assert(md.querySelector("ol").start === 3, "Ordered list start lost");
   assert(md.querySelector(".local-image").title === "图片标题", "Image title lost");
   assert([...md.querySelectorAll("img")].every(img => img.src.startsWith("data:")), "Remote image request allowed");
+  await wait(() => diagramsReady(md), "Mermaid diagram rendered");
   const editorHTML = md.innerHTML;
+  const editorAppearance = await appearance(md);
+  const editorDiagrams = await diagramPixels(md);
   const anchor = [...md.querySelectorAll("a")].find(a => a.textContent === "跳到中文标题");
   anchor.click();
   assert(md.contains(document.activeElement) && document.activeElement.tagName === "H2", "Local heading anchor did not focus target");
@@ -80,8 +127,21 @@
   await wait(() => preview.querySelector(".local-image"), "publish image element");
   preview.querySelector(".local-image").scrollIntoView();
   await wait(() => preview.querySelector(".local-image")?.naturalWidth === 4, "publish image preview");
-  const normalizePreview = (html, container) => html.replaceAll(container.querySelector("h1").id.slice(0, -"markdown-预览验收".length), "md-SCOPE-");
-  assert(normalizePreview(preview.innerHTML, preview) === normalizePreview(editorHTML, md), "Editor and publish Markdown output differ");
+  await wait(() => diagramsReady(preview), "publish Mermaid rendered");
+  // Mermaid sequence diagrams use process-global actor IDs; those inert image-local identifiers do not change pixels.
+  const normalizePreview = (html, container) => html
+    .replace(/data:image\/svg\+xml;charset=utf-8,([^"]+)/g, (_, svg) => `data:image/svg+xml;charset=utf-8,${encodeURIComponent(decodeURIComponent(svg).replace(/id="(?:actor|root-)\d+"/g, 'id="participant"'))}`)
+    .replaceAll(container.querySelector("h1").id.slice(0, -"markdown-预览验收".length), "md-SCOPE-");
+  const compareMarkup = (actual, expected, label) => {
+    if (actual === expected) return;
+    const left = actual, right = expected;
+    let index = 0;
+    while (left[index] === right[index] && index < left.length) index++;
+    throw new Error(`${label} at ${index}: ${left.slice(index - 40, index + 160)} / ${right.slice(index - 40, index + 160)}`);
+  };
+  compareMarkup(normalizePreview(preview.innerHTML, preview), normalizePreview(editorHTML, md), "Editor/publish output differs");
+  assert(JSON.stringify(await diagramPixels(preview)) === JSON.stringify(editorDiagrams), "Editor/publish diagram pixels differ");
+  sameAppearance(await appearance(preview), editorAppearance, "Editor/publish appearance");
   [...preview.querySelectorAll("a")].find(a => a.textContent === "跳到中文标题").click();
   assert(preview.contains(document.activeElement), "Publish anchor jumped into editor");
   assert(document.documentElement.scrollWidth <= window.innerWidth, "Publish preview overflows narrow viewport");
@@ -113,6 +173,27 @@
   await wait(() => !document.querySelector("dialog[open]"), "publication recorded");
   snapshot = await api.snapshot();
   assert(snapshot.publications[0]?.confirmation === "manual", "Manual publication provenance lost");
+  document.querySelector(".more-menu").open = true;
+  await click("历史版本");
+  await wait(() => document.querySelector(".history-list button"), "saved revision list");
+  document.querySelector(".history-list button").click();
+  await wait(() => document.querySelector(".history-preview .markdown"), "history Markdown");
+  const history = document.querySelector(".history-preview .markdown");
+  await wait(() => history.querySelector(".local-image"), "history image element");
+  history.querySelector(".local-image").scrollIntoView();
+  await wait(() => history.querySelector(".local-image")?.naturalWidth === 4 && diagramsReady(history), "history images loaded");
+  assert(normalizePreview(history.innerHTML, history) === normalizePreview(editorHTML, md), "History Markdown output differs");
+  assert(JSON.stringify(await diagramPixels(history)) === JSON.stringify(editorDiagrams), "Editor/history diagram pixels differ");
+  sameAppearance(await appearance(history), editorAppearance, "Editor/history appearance");
+  document.querySelector('[aria-label="关闭历史版本"]').click();
+  await click("正文");
+  fill('[aria-label="文章正文"]', '![不可访问的图片](http://127.0.0.1/private.png)');
+  await click("预览");
+  await wait(() => button("加载这张图片"), "remote image opt-in");
+  assert(!document.querySelector(".editor-content .markdown img"), "Remote image loaded without opt-in");
+  await click("加载这张图片");
+  await wait(() => document.querySelector(".image-placeholder")?.textContent.includes("外链图片无法读取"), "private remote image blocked");
+  assert(!document.querySelector(".editor-content .markdown img"), "Private remote image rendered");
   await click("阅读");
   await wait(() => document.querySelector(".reading-workspace"), "reading workspace");
   await wait(() => document.querySelector(".reading-excerpt")?.textContent.includes("Offline subscription content"), "RSS cached content");
@@ -144,7 +225,7 @@
   snapshot = await api.snapshot();
   assert(snapshot.drafts.some((draft) => draft.body.includes("来源：https://example.com/engineering-notes")), "Converted note lost attribution");
   await step("full_backup_roundtrip");
-  await step("complete", { markdownFixtureRendered: true, markdownAnchorsScoped: true, markdownEditorPublishParity: true, markdownNarrowLayout: true, xSetupRendered: true, unauthenticatedPublishBlocked: true, cachedContentSearch: true, storedImageRendered: true, rssContentRendered: true, privateFeedBlocked: true, fullBackupRoundtrip: true, rendererIsolation: true, autosaveOnNavigation: true, markdownSanitized: true, nativeClipboard: clipboardAvailable, nativeClipboardSkipped: !clipboardAvailable, manualPublicationRecorded: true, readingNoteSaved: true, readingToDraft: true, narrowViewport: true });
+  await step("complete", { mermaidDiagramRendered: true, mermaidErrorsVisible: true, remoteImagesOptIn: true, privateRemoteImageBlocked: true, markdownHistoryParity: true, markdownEqualWidthAppearance: true, mermaidPixelParity: true, markdownFixtureRendered: true, markdownAnchorsScoped: true, markdownEditorPublishParity: true, markdownNarrowLayout: true, xSetupRendered: true, unauthenticatedPublishBlocked: true, cachedContentSearch: true, storedImageRendered: true, rssContentRendered: true, privateFeedBlocked: true, fullBackupRoundtrip: true, rendererIsolation: true, autosaveOnNavigation: true, markdownSanitized: true, nativeClipboard: clipboardAvailable, nativeClipboardSkipped: !clipboardAvailable, manualPublicationRecorded: true, readingNoteSaved: true, readingToDraft: true, narrowViewport: true });
   // Closing immediately exercises the pending-save barrier instead of waiting for debounce.
   fill('[aria-label="文章标题"]', "Tauri 测试样本 · 关闭时保存");
   await step("close");

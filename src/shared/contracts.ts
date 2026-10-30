@@ -107,6 +107,7 @@ export interface WorkbenchAPI {
   }): Promise<PublishReceipt>;
 
   insertImage?(): Promise<string | null>;
+  remoteImagePreview?(url: string): Promise<string>;
   assetData?(name: string): Promise<string>;
   library?(): Promise<Library>;
   addFeed?(url: string): Promise<Feed>;

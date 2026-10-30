@@ -82,3 +82,25 @@ $$
 ![远程图片](https://example.com/preview.png "外链图片")
 
 [本地文件](file:///not-a-real-file) 不应打开本机文件。
+
+## 时序图
+
+```mermaid
+sequenceDiagram
+  participant 作者
+  participant 平台
+  作者->>平台: 提交文章
+  平台-->>作者: 发布回执
+```
+
+## 异常图表（预期显示提示并保留源码）
+
+```mermaid
+not-a-diagram !!!
+```
+
+```mermaid
+%%{init: {"theme": "dark"}}%%
+graph LR
+  A --> B
+```

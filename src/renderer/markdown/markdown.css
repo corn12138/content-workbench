@@ -261,3 +261,25 @@
 .markdown .hljs-strong {
   font-weight: bold;
 }
+.markdown .mermaid-preview {
+  padding: 18px;
+  overflow: auto;
+  background: white;
+}
+.markdown .mermaid-preview img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  margin: auto;
+}
+.markdown details.mermaid-source {
+  margin: 0;
+  border: 0;
+  border-top: 1px solid #e1e7de;
+  border-radius: 0;
+  padding: 10px 0 0;
+}
+.markdown .mermaid-source summary {
+  padding: 0 12px 10px;
+  font-size: 12px;
+}

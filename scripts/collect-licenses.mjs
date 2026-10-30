@@ -65,6 +65,15 @@ async function collect(ecosystem, name, version, expression, directory, extra = 
       entries.push({ name: "LICENSE" });
     }
   }
+  if (!entries.length && ecosystem === "npm" && ["fastdom@1.0.12", "strictdom@1.0.1"].includes(`${name}@${version}`)) {
+    // These published packages carry the full MIT notice inside their README instead of a license file.
+    const readme = await readFile(join(directory, "README.md"), "utf8");
+    const start = readme.indexOf("(The MIT License)");
+    if (start >= 0 && readme.slice(start).includes("THE SOFTWARE IS PROVIDED")) {
+      await writeFile(join(destination, "LICENSE"), readme.slice(start).trim() + "\n");
+      entries.push({ name: "LICENSE" });
+    }
+  }
   if (!entries.length) missing.push(`${name}@${version}`);
   inventory.push({ ecosystem, name, version, license: expression, ...extra, licenseDirectory: `licenses/${id}` });
 }

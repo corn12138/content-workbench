@@ -46,7 +46,7 @@ test("code highlighting preserves whitespace, unknown language and literal HTML"
   assert.match(html, /hljs-keyword/);
   assert.match(html.replace(/<[^>]*>/g, ""), /  console/);
   assert.match(html, /&lt;tag&gt; &amp; x/);
-  assert.match(html, /图表语法，当前显示源码/);
+  assert.match(html, /图表与源码/);
 });
 
 test("sanitized HTML keeps details and formatting without active content or remote image loading", () => {

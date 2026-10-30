@@ -42,6 +42,7 @@ export async function createTauriAPI(): Promise<WorkbenchAPI> {
     xDisconnect: () => call("x_disconnect"),
     xPublish: (input) => call("x_publish", { input }),
     insertImage: () => call("insert_image"),
+    remoteImagePreview: (url) => call("remote_image_preview", { url }, false),
     assetData: (name) => call("asset_data", { name }, false),
     library: () => call("library"),
     // Network refreshes write only after fetching and use an epoch guard; they must not delay closing local editors.

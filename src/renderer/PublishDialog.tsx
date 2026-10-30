@@ -79,6 +79,11 @@ export function PublishDialog({
       <div className="publish-layout">
         <div className="publish-preview">
           <h2>{draft.title || "未命名稿件"}</h2>
+          <p className="muted small">
+            {platform === "x"
+              ? "原稿参考，实际发布内容请查看右侧短帖。"
+              : "本地排版预览，最终效果请在掘金发布页核对。"}
+          </p>
           <Markdown text={draft.body} />
         </div>
         <aside className="publish-actions">

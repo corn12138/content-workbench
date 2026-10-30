@@ -3,6 +3,7 @@ mod feed_commands;
 pub mod feed_fetch;
 pub mod feed_parse;
 mod files;
+mod image_preview;
 mod lifecycle;
 mod migration;
 mod publishing;
@@ -53,6 +54,7 @@ pub fn run() {
             files::restore_backup,
             files::insert_image,
             commands::asset_data,
+            image_preview::remote_image_preview,
             feed_commands::library,
             feed_commands::add_feed,
             feed_commands::refresh_feed,

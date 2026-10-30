@@ -75,7 +75,7 @@ pub fn feed_url(raw: &str) -> Result<Url, String> {
     Ok(url)
 }
 
-fn addresses(url: &Url) -> Result<Vec<SocketAddr>, String> {
+pub(crate) fn addresses(url: &Url) -> Result<Vec<SocketAddr>, String> {
     let host = url
         .host_str()
         .unwrap_or_default()

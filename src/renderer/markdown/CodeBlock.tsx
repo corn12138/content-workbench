@@ -1,5 +1,6 @@
 import { useState, type ComponentProps } from "react";
 import type { ExtraProps } from "react-markdown";
+import { MermaidPreview } from "./MermaidPreview";
 import { api, errorMessage } from "../api";
 
 export function CodeBlock({
@@ -15,12 +16,23 @@ export function CodeBlock({
     code?.type === "element"
       ? code.properties.className?.toString().match(/language-([^,\s]+)/)?.[1]
       : undefined;
+  const sourceText = (value: typeof node): string =>
+    value?.children
+      .map((child) =>
+        child.type === "text"
+          ? child.value
+          : child.type === "element"
+            ? sourceText(child)
+            : "",
+      )
+      .join("") || "";
+  const source = sourceText(node);
   return (
     <figure className="md-code-block">
       <figcaption>
         <span>
           {language || "代码"}
-          {language === "mermaid" ? " · 图表语法，当前显示源码" : ""}
+          {language === "mermaid" ? " · 图表与源码" : ""}
         </span>
         <span role="status">{message}</span>
         <button
@@ -39,9 +51,21 @@ export function CodeBlock({
           复制代码
         </button>
       </figcaption>
-      <pre {...props} tabIndex={0}>
-        {children}
-      </pre>
+      {language === "mermaid" ? (
+        <>
+          <MermaidPreview source={source} />
+          <details className="mermaid-source">
+            <summary>查看图表源码</summary>
+            <pre {...props} tabIndex={0}>
+              {children}
+            </pre>
+          </details>
+        </>
+      ) : (
+        <pre {...props} tabIndex={0}>
+          {children}
+        </pre>
+      )}
     </figure>
   );
 }
