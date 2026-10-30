@@ -8,7 +8,7 @@ use std::{io::Read, time::Duration};
 use tauri::WebviewWindow;
 
 // Explicit preview requests do not persist tracking URLs or downloaded bytes into article backups.
-fn fetch(raw: &str) -> Result<String, String> {
+pub(crate) fn fetch_asset(raw: &str) -> Result<Asset, String> {
     let mut url = feed_fetch::feed_url(raw).map_err(|_| "请使用不含账号密码的公网图片地址。")?;
     for hop in 0..=3 {
         let addresses = feed_fetch::addresses(&url)?;
@@ -51,24 +51,33 @@ fn fetch(raw: &str) -> Result<String, String> {
             .take((MAX_IMAGE_BYTES + 1) as u64)
             .read_to_end(&mut bytes)
             .map_err(|_| "图片未完整接收。")?;
-        let asset = Asset::from_bytes(bytes)?;
-        return Ok(format!(
-            "data:{};base64,{}",
-            asset.mime,
-            STANDARD.encode(asset.bytes)
-        ));
+        return Asset::from_bytes(bytes);
     }
     Err("图片无法读取。".into())
 }
 #[tauri::command]
 pub async fn remote_image_preview(window: WebviewWindow, url: String) -> Result<String, String> {
     trusted(&window)?;
-    tauri::async_runtime::spawn_blocking(move || fetch(&url))
-        .await
-        .map_err(|_| "图片预览未完成。".to_string())?
+    tauri::async_runtime::spawn_blocking(move || {
+        let asset = fetch_asset(&url)?;
+        Ok(format!(
+            "data:{};base64,{}",
+            asset.mime,
+            STANDARD.encode(asset.bytes)
+        ))
+    })
+    .await
+    .map_err(|_| "图片预览未完成。".to_string())?
 }
 #[cfg(test)]
 mod tests {
+    #[test]
+    #[ignore = "explicit public-network verification only"]
+    fn public_project_icon_can_be_saved() {
+        let asset = super::fetch_asset("https://raw.githubusercontent.com/corn12138/content-workbench/main/src-tauri/icons/128x128.png").unwrap();
+        assert_eq!(asset.mime, "image/png");
+        assert!(!asset.bytes.is_empty());
+    }
     #[test]
     fn private_image_destinations_are_rejected_before_fetch() {
         for url in [
@@ -77,7 +86,7 @@ mod tests {
             "http://[::1]/a.png",
             "https://name:pass@example.com/a.png",
         ] {
-            assert!(super::fetch(url).is_err());
+            assert!(super::fetch_asset(url).is_err());
         }
     }
 }

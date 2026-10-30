@@ -16,6 +16,7 @@ pub struct AppState {
     pub close_pending: AtomicBool,
     pub close_attempt: AtomicU64,
     pub library_epoch: AtomicU64,
+    pub updating: AtomicBool,
 }
 
 pub fn trusted(window: &WebviewWindow) -> Result<(), String> {
@@ -27,7 +28,8 @@ pub fn trusted(window: &WebviewWindow) -> Result<(), String> {
 
 impl AppState {
     pub fn lock(&self) -> Result<MutexGuard<'_, WorkbenchStore>, String> {
-        self.store
+        let store = self
+            .store
             .as_ref()
             .ok_or_else(|| {
                 self.startup_error
@@ -35,6 +37,10 @@ impl AppState {
                     .unwrap_or_else(|| "资料暂时无法访问。".into())
             })?
             .lock()
-            .map_err(|_| "资料暂时无法访问，请重新打开应用。".into())
+            .map_err(|_| "资料暂时无法访问，请重新打开应用。".to_string())?;
+        if self.updating.load(std::sync::atomic::Ordering::SeqCst) {
+            return Err("正在升级，请等待应用重新打开。".into());
+        }
+        Ok(store)
     }
 }

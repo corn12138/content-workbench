@@ -4,11 +4,11 @@
 
 A local-first desktop workspace for developer writing, assisted publishing and reading notes. Built with Tauri 2, Rust and React. No AI service or account is required for the local workflow.
 
-**当前版本为 0.3.0**，支持图片随稿保存、完整备份、RSS 阅读和增强 Markdown 预览；X 授权与短帖发布为实验性功能，真实账号连通尚待开发者应用配置后验收，见[配置与能力边界](docs/publishing-and-preview.md)。已验证平台为 macOS Apple Silicon；Windows、Linux 和 Intel Mac 尚未验收。
+**当前版本为 0.4.0**，支持图片随稿保存、完整备份、RSS 阅读和增强 Markdown 预览；X 授权与短帖发布为实验性功能，真实账号连通尚待开发者应用配置后验收，见[配置与能力边界](docs/publishing-and-preview.md)。已验证平台为 macOS Apple Silicon；Windows、Linux 和 Intel Mac 尚未验收。
 
 ## 下载与开始
 
-从 [Releases](https://github.com/corn12138/content-workbench/releases) 下载 `content-workbench-0.3.0-macos-arm64.zip`，解压后将「内容工作台.app」放入应用程序目录并打开。
+从 [Releases](https://github.com/corn12138/content-workbench/releases) 下载 `content-workbench-0.4.0-macos-arm64.zip`，解压后将「内容工作台.app」放入应用程序目录并打开。
 
 当前版本未使用 Apple Developer ID 签名或公证，macOS 可能阻止首次打开。请先核对下载来源和发行页 SHA-256；确认信任后可在系统设置的「隐私与安全性」中使用系统提供的打开选项。不要关闭系统全局安全保护；不希望运行未公证应用时，可按下方步骤从源码构建。
 
@@ -26,9 +26,11 @@ A local-first desktop workspace for developer writing, assisted publishing and r
 - SQLite 本地存储；单个 `.cwb` 备份包含正文、历史、图片、发布记录、订阅和笔记，兼容导入旧 JSON 文字备份。
 - 有本地图片的文章导出为 ZIP（`article.md` + `assets/`），解压后可重新导入；纯文字文章仍导出 Markdown。
 
-**0.3.0 新增**：Markdown 安全 HTML、公式和 Mermaid 图表预览，外链图片点击加载；正文、历史与发布窗口共用渲染器，见[预览对照范围](docs/markdown-preview-verification.md)。X Native App 配置、浏览器授权、纯文本预览确认发布及平台回执；RSS 来源筛选、缓存内容搜索和全文优先预览。X 凭证使用 macOS 钥匙串，不进入资料备份。未配置开发者应用时不会向 X 发帖。
+**0.3.0 功能**：Markdown 安全 HTML、公式和 Mermaid 图表预览，外链图片点击加载；正文、历史与发布窗口共用渲染器，见[预览对照范围](docs/markdown-preview-verification.md)。X Native App 配置、浏览器授权、纯文本预览确认发布及平台回执；RSS 来源筛选、缓存内容搜索和全文优先预览。X 凭证使用 macOS 钥匙串，不进入资料备份。未配置开发者应用时不会向 X 发帖。
 
-**尚未实现**：平台自动上传图片、评论及浏览量同步、后台采集、云同步和自动更新。发布时需在平台上传图片。关闭窗口后应用退出，不持续采集；反馈页不会生成模拟评论或统计。
+**0.4.0 新增**：掘金发布副本自动适配目录链接；发布窗口点击“准备图片”，把可下载的外链图片随稿保存并打开按正文顺序编号的上传副本。自动检查新版本，点击升级后校验签名、备份资料和旧应用、安装并重启；可关闭自动检查。[更新与回退说明](docs/automatic-updates.md)。0.3.0 及更早版本需手动安装一次。
+
+**尚未实现**：平台自动上传图片、评论及浏览量同步、后台采集和云同步。发布时需在平台上传图片。关闭窗口后应用退出，不持续采集；反馈页不会生成模拟评论或统计。
 
 ## 开发与验证
 

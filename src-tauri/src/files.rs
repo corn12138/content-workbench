@@ -23,7 +23,7 @@ fn bounded_bytes(path: &Path, limit: u64) -> Result<Vec<u8>, String> {
     Ok(bytes)
 }
 
-fn atomic_write(path: &Path, body: &[u8]) -> Result<(), String> {
+pub(crate) fn atomic_write(path: &Path, body: &[u8]) -> Result<(), String> {
     // A sibling temporary file keeps an interrupted export from truncating a previous backup.
     let temporary = path.with_file_name(format!(".workbench-{}.tmp", uuid::Uuid::new_v4()));
     let result = (|| {

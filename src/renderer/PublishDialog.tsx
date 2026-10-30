@@ -1,26 +1,33 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Copy, ExternalLink, X, Check } from "lucide-react";
 import type { Draft } from "../shared/contracts";
 import { api, errorMessage } from "./api";
 import { XPublish } from "./publishing/XPublish";
 import { sensitiveText } from "./publishing/text";
 import "./publishing/publishing.css";
+import { prepareJuejin } from "./publishing/juejin";
+import { JuejinImages } from "./publishing/JuejinImages";
 import { Markdown } from "./Markdown";
 
 export function PublishDialog({
-  draft,
+  draft: initialDraft,
   onClose,
   onRecorded,
+  onPrepared,
   notify,
 }: {
   draft: Draft;
   onClose: () => void;
   onRecorded: () => Promise<void>;
+  onPrepared: (draft: Draft) => void;
   notify: (message: string) => void;
 }) {
+  const [draft, setDraft] = useState(initialDraft);
+  const prepared = useMemo(() => prepareJuejin(draft.body), [draft.body]);
   const dialog = useRef<HTMLDialogElement>(null);
   const [url, setURL] = useState("");
   const [busy, setBusy] = useState(false);
+  const [recording, setRecording] = useState(false);
   const [error, setError] = useState("");
   const [copied, setCopied] = useState(false);
   const [platform, setPlatform] = useState<"juejin" | "x">("juejin");
@@ -32,6 +39,7 @@ export function PublishDialog({
   }, []);
   const record = async () => {
     setBusy(true);
+    setRecording(true);
     setError("");
     try {
       if (
@@ -50,6 +58,7 @@ export function PublishDialog({
       setError(errorMessage(error));
     } finally {
       setBusy(false);
+      setRecording(false);
     }
   };
   return (
@@ -84,7 +93,7 @@ export function PublishDialog({
               ? "原稿参考，实际发布内容请查看右侧短帖。"
               : "本地排版预览，最终效果请在掘金发布页核对。"}
           </p>
-          <Markdown text={draft.body} />
+          <Markdown text={platform === "juejin" ? prepared.body : draft.body} />
         </div>
         <aside className="publish-actions">
           <div className="platform-tabs" aria-label="选择发布平台">
@@ -134,11 +143,32 @@ export function PublishDialog({
               <p className="muted">
                 点击下方按钮即可复制正文并打开掘金。沿用浏览器登录状态，选择分类、补充图片后发布。
               </p>
-              {/!\[|<img\b/i.test(draft.body) && (
-                <p className="notice">
-                  这篇文章包含图片。复制正文不会上传图片，请在掘金补充；可从稿件“更多
-                  → 导出文章”取出已保存的图片。
+              {prepared.images > 0 && (
+                <JuejinImages
+                  draft={draft}
+                  busy={busy}
+                  onBusy={setBusy}
+                  onPrepared={(next) => {
+                    setDraft(next);
+                    onPrepared(next);
+                    setCopied(false);
+                  }}
+                />
+              )}
+              {prepared.adjusted > 0 && (
+                <p className="muted small">
+                  已为掘金适配 {prepared.adjusted} 处目录链接，原稿不变。
                 </p>
+              )}
+              {prepared.differences.length > 0 && (
+                <details className="preview-differences">
+                  <summary>发布时留意的排版差异</summary>
+                  {prepared.differences.map((item) => (
+                    <p className="small" key={item}>
+                      {item}
+                    </p>
+                  ))}
+                </details>
               )}
               {sensitive && (
                 <div className="notice warning">
@@ -156,10 +186,10 @@ export function PublishDialog({
               )}
               <button
                 className="button"
-                disabled={!canCopy}
+                disabled={!canCopy || busy}
                 onClick={() =>
                   void api
-                    .copyText(draft.body)
+                    .copyText(prepared.body)
                     .then(() => setCopied(true))
                     .catch((e) => setError(errorMessage(e)))
                 }
@@ -169,10 +199,10 @@ export function PublishDialog({
               </button>
               <button
                 className="button primary"
-                disabled={!canCopy}
+                disabled={!canCopy || busy}
                 onClick={() =>
                   void api
-                    .copyText(draft.body)
+                    .copyText(prepared.body)
                     .then(() => {
                       setCopied(true);
                       return api.openExternal(
@@ -207,7 +237,7 @@ export function PublishDialog({
               disabled={!url.trim() || busy}
               onClick={() => void record()}
             >
-              {busy ? "记录中…" : "记录发布链接"}
+              {recording ? "记录中…" : "记录发布链接"}
             </button>
             <small>只记录链接，不会代你发布或修改文章。</small>
           </div>

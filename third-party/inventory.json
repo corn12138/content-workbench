@@ -364,6 +364,15 @@
   {
     "ecosystem": "cargo",
     "name": "core-foundation",
+    "version": "0.9.4",
+    "license": "MIT OR Apache-2.0",
+    "source": "https://crates.io/api/v1/crates/core-foundation/0.9.4/download",
+    "repository": "https://github.com/servo/core-foundation-rs",
+    "licenseDirectory": "licenses/cargo-core-foundation-0.9.4"
+  },
+  {
+    "ecosystem": "cargo",
+    "name": "core-foundation",
     "version": "0.10.1",
     "license": "MIT OR Apache-2.0",
     "source": "https://crates.io/api/v1/crates/core-foundation/0.10.1/download",
@@ -757,6 +766,15 @@
     "source": "https://crates.io/api/v1/crates/feed-rs/3.0.0/download",
     "repository": "https://github.com/feed-rs/feed-rs.git",
     "licenseDirectory": "licenses/cargo-feed-rs-3.0.0"
+  },
+  {
+    "ecosystem": "cargo",
+    "name": "filetime",
+    "version": "0.2.29",
+    "license": "MIT/Apache-2.0",
+    "source": "https://crates.io/api/v1/crates/filetime/0.2.29/download",
+    "repository": "https://github.com/alexcrichton/filetime",
+    "licenseDirectory": "licenses/cargo-filetime-0.2.29"
   },
   {
     "ecosystem": "cargo",
@@ -1426,6 +1444,15 @@
   },
   {
     "ecosystem": "cargo",
+    "name": "minisign-verify",
+    "version": "0.3.0",
+    "license": "MIT",
+    "source": "https://crates.io/api/v1/crates/minisign-verify/0.3.0/download",
+    "repository": "https://github.com/jedisct1/rust-minisign-verify",
+    "licenseDirectory": "licenses/cargo-minisign-verify-0.3.0"
+  },
+  {
+    "ecosystem": "cargo",
     "name": "miniz_oxide",
     "version": "0.8.9",
     "license": "MIT OR Zlib OR Apache-2.0",
@@ -1596,6 +1623,16 @@
   },
   {
     "ecosystem": "cargo",
+    "name": "objc2-osa-kit",
+    "version": "0.3.2",
+    "license": "Zlib OR Apache-2.0 OR MIT",
+    "source": "https://crates.io/api/v1/crates/objc2-osa-kit/0.3.2/download",
+    "repository": "https://github.com/madsmtm/objc2",
+    "licenseSource": "https://raw.githubusercontent.com/madsmtm/objc2/7b1abfd750a2cacaea71d6a56ecfb83cb7de560b/LICENSE.md",
+    "licenseDirectory": "licenses/cargo-objc2-osa-kit-0.3.2"
+  },
+  {
+    "ecosystem": "cargo",
     "name": "objc2-quartz-core",
     "version": "0.3.2",
     "license": "Zlib OR Apache-2.0 OR MIT",
@@ -1640,6 +1677,15 @@
     "source": "https://crates.io/api/v1/crates/option-ext/0.2.0/download",
     "repository": "https://github.com/soc/option-ext.git",
     "licenseDirectory": "licenses/cargo-option-ext-0.2.0"
+  },
+  {
+    "ecosystem": "cargo",
+    "name": "osakit",
+    "version": "0.3.1",
+    "license": "MIT OR Apache-2.0",
+    "source": "https://crates.io/api/v1/crates/osakit/0.3.1/download",
+    "repository": "https://github.com/mdevils/rust-osakit",
+    "licenseDirectory": "licenses/cargo-osakit-0.3.1"
   },
   {
     "ecosystem": "cargo",
@@ -2436,12 +2482,39 @@
   },
   {
     "ecosystem": "cargo",
+    "name": "system-configuration",
+    "version": "0.7.0",
+    "license": "MIT OR Apache-2.0",
+    "source": "https://crates.io/api/v1/crates/system-configuration/0.7.0/download",
+    "repository": "https://github.com/mullvad/system-configuration-rs",
+    "licenseDirectory": "licenses/cargo-system-configuration-0.7.0"
+  },
+  {
+    "ecosystem": "cargo",
+    "name": "system-configuration-sys",
+    "version": "0.6.0",
+    "license": "MIT OR Apache-2.0",
+    "source": "https://crates.io/api/v1/crates/system-configuration-sys/0.6.0/download",
+    "repository": "https://github.com/mullvad/system-configuration-rs",
+    "licenseDirectory": "licenses/cargo-system-configuration-sys-0.6.0"
+  },
+  {
+    "ecosystem": "cargo",
     "name": "tao",
     "version": "0.37.2",
     "license": "Apache-2.0",
     "source": "https://crates.io/api/v1/crates/tao/0.37.2/download",
     "repository": "https://github.com/tauri-apps/tao",
     "licenseDirectory": "licenses/cargo-tao-0.37.2"
+  },
+  {
+    "ecosystem": "cargo",
+    "name": "tar",
+    "version": "0.4.46",
+    "license": "MIT OR Apache-2.0",
+    "source": "https://crates.io/api/v1/crates/tar/0.4.46/download",
+    "repository": "https://github.com/composefs/tar-rs",
+    "licenseDirectory": "licenses/cargo-tar-0.4.46"
   },
   {
     "ecosystem": "cargo",
@@ -2533,6 +2606,15 @@
     "source": "https://crates.io/api/v1/crates/tauri-plugin-single-instance/2.5.5/download",
     "repository": "https://github.com/tauri-apps/plugins-workspace",
     "licenseDirectory": "licenses/cargo-tauri-plugin-single-instance-2.5.5"
+  },
+  {
+    "ecosystem": "cargo",
+    "name": "tauri-plugin-updater",
+    "version": "2.14.1",
+    "license": "Apache-2.0 OR MIT",
+    "source": "https://crates.io/api/v1/crates/tauri-plugin-updater/2.14.1/download",
+    "repository": "https://github.com/tauri-apps/plugins-workspace",
+    "licenseDirectory": "licenses/cargo-tauri-plugin-updater-2.14.1"
   },
   {
     "ecosystem": "cargo",
@@ -3001,6 +3083,15 @@
     "source": "https://crates.io/api/v1/crates/wry/0.57.1/download",
     "repository": "https://github.com/tauri-apps/wry",
     "licenseDirectory": "licenses/cargo-wry-0.57.1"
+  },
+  {
+    "ecosystem": "cargo",
+    "name": "xattr",
+    "version": "1.7.0",
+    "license": "MIT OR Apache-2.0",
+    "source": "https://crates.io/api/v1/crates/xattr/1.7.0/download",
+    "repository": "https://github.com/Stebalien/xattr",
+    "licenseDirectory": "licenses/cargo-xattr-1.7.0"
   },
   {
     "ecosystem": "cargo",
@@ -5087,6 +5178,7 @@
     "license": "MIT",
     "source": "https://registry.npmjs.org/rehype-katex/-/rehype-katex-7.0.1.tgz",
     "development": false,
+    "licenseSource": "https://raw.githubusercontent.com/remarkjs/remark-math/88a9497e1ede93b958237c85edbf5651faeca7af/license",
     "licenseDirectory": "licenses/npm-rehype-katex-7.0.1"
   },
   {
@@ -5123,6 +5215,7 @@
     "license": "MIT",
     "source": "https://registry.npmjs.org/remark-math/-/remark-math-6.0.0.tgz",
     "development": false,
+    "licenseSource": "https://raw.githubusercontent.com/remarkjs/remark-math/d5d0660b150810a535bbb07eac6cc96a4510aa24/license",
     "licenseDirectory": "licenses/npm-remark-math-6.0.0"
   },
   {

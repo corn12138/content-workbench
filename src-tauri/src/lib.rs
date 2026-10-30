@@ -6,11 +6,16 @@ mod files;
 mod image_preview;
 mod lifecycle;
 mod migration;
+mod prepared_images;
 mod publishing;
 #[cfg(debug_assertions)]
 mod smoke;
 mod state;
 pub mod store;
+mod update_backup;
+#[cfg(test)]
+mod updater_tests;
+mod updates;
 
 use std::sync::{
     atomic::{AtomicBool, AtomicU64, Ordering},
@@ -21,6 +26,8 @@ use tauri::Manager;
 pub fn run() {
     let app = tauri::Builder::default()
         .manage(publishing::PublishingState::default())
+        .manage(updates::UpdateState::default())
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_single_instance::init(|app, _, _| {
             if let Some(window) = app.get_webview_window("main") {
                 let _ = window.show();
@@ -37,6 +44,9 @@ pub fn run() {
             publishing::x_disconnect,
             publishing::x_publish,
             commands::snapshot,
+            updates::check_update,
+            updates::install_update,
+            updates::open_update_backups,
             commands::save_draft,
             commands::archive_draft,
             commands::revisions,
@@ -55,6 +65,7 @@ pub fn run() {
             files::insert_image,
             commands::asset_data,
             image_preview::remote_image_preview,
+            prepared_images::prepare_images,
             feed_commands::library,
             feed_commands::add_feed,
             feed_commands::refresh_feed,
@@ -100,6 +111,7 @@ pub fn run() {
                 close_pending: AtomicBool::new(false),
                 close_attempt: AtomicU64::new(0),
                 library_epoch: AtomicU64::new(0),
+                updating: AtomicBool::new(false),
             });
             let window =
                 tauri::WebviewWindowBuilder::from_config(app, &app.config().app.windows[0])?

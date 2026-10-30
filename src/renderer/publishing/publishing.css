@@ -48,3 +48,35 @@
 .publish-actions {
   min-width: 0;
 }
+.image-preparation {
+  display: block;
+}
+.image-preparation small {
+  display: block;
+  margin-top: 8px;
+}
+.image-preparation p {
+  margin: 8px 0;
+}
+.preview-differences {
+  margin: 12px 0;
+}
+.update-progress {
+  max-width: 440px;
+  border: 1px solid #d9e4dd;
+  border-radius: 16px;
+  padding: 24px;
+}
+.update-progress::backdrop {
+  background: #18281d66;
+}
+.update-banner {
+  position: absolute;
+  top: 12px;
+  right: 24px;
+  z-index: 3;
+  padding: 4px 12px;
+  border-radius: 8px;
+  background: #edf5ef;
+  font-size: 13px;
+}

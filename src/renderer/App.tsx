@@ -9,11 +9,14 @@ import { FeedbackView } from "./FeedbackView";
 import { SettingsView } from "./SettingsView";
 import { ReadingView } from "./ReadingView";
 import { Sidebar, type View } from "./Sidebar";
+import { useUpdates } from "./updates/useUpdates";
+import { UpdateProgress } from "./updates/UpdateSection";
 
 const empty: Snapshot = { drafts: [], publications: [], readings: [] };
 const noPendingEdits = async () => {};
 
 export function App() {
+  const updates = useUpdates();
   const [data, setData] = useState<Snapshot>(empty);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
@@ -176,6 +179,17 @@ export function App() {
       />
       <main className="workspace" aria-busy={loading || busy} inert={busy}>
         <div className="window-dragbar" data-tauri-drag-region />
+        {updates.available && view !== "settings" && (
+          <div className="update-banner" role="status">
+            新版本 {updates.available.version} 已就绪{" "}
+            <button
+              className="button quiet"
+              onClick={() => changeView("settings")}
+            >
+              查看更新
+            </button>
+          </div>
+        )}
         {loading ? (
           <div className="empty-state">
             <p>正在打开你的工作台…</p>
@@ -235,6 +249,8 @@ export function App() {
           />
         ) : (
           <SettingsView
+            updates={updates}
+            installUpdate={() => void action(updates.install)}
             onRestored={async () => {
               resetEditor();
               setSelected(null);
@@ -244,6 +260,7 @@ export function App() {
           />
         )}
       </main>
+      <UpdateProgress updates={updates} />
       {notice && (
         <div className="toast" role="status">
           <span>{notice}</span>
@@ -261,6 +278,10 @@ export function App() {
           draft={publishing}
           onClose={() => setPublishing(null)}
           onRecorded={refresh}
+          onPrepared={(draft) => {
+            onSaved(draft);
+            resetEditor();
+          }}
           notify={notify}
         />
       )}
