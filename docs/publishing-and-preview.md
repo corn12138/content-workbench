@@ -52,3 +52,11 @@ Callback URL 必须精确填写 `http://127.0.0.1:34187/oauth/x/callback`。网�
 - [加权字符计数](https://docs.x.com/fundamentals/counting-characters)
 
 后续开发交接：Read AGENTS.md and docs/publishing-and-preview.md first. Preserve old releases and user data. Validate X OAuth with a user-configured Native App, never ask for secrets in chat, and never publish test content without explicit approval. Verify refresh, revoke, uncertain-write recovery, backups and the RSS reading flow. Keep unsupported platform capabilities visibly distinct from verified ones.
+
+## Markdown 预览验收
+
+正文、历史版本和发布窗口共用渲染器。支持 CommonMark/GFM 标题、列表、任务清单、引用、表格对齐、删除线、脚注、代码高亮，以及 KaTeX 行内/块公式。标题与脚注锚点按预览实例隔离；表格和代码单独滚动；图片读取失败可重试。导入图片保留 title，并识别表格和脚注中的资源。
+
+HTML 经白名单净化后展示，保留 details、summary、br 等安全排版，脚本、样式、嵌入页面不执行。相对文档链接不支持跨稿件跳转，外链图片不自动联网，HTML 图片不自动导入；Mermaid 明确显示源码，不宣称图形渲染。平台自身的 Markdown 方言与样式可能不同，最终发文仍以平台预览为准。
+
+复杂验收样例位于 `tests/fixtures/markdown-preview.md`。自动检查包含语义渲染、净化、目录/脚注跳转、图片说明、编辑与发布输出一致性及窄窗口溢出。KaTeX 固定使用 0.19.1，通过 overrides 避开上游插件默认旧版本的已知安全问题。

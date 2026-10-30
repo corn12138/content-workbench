@@ -282,3 +282,21 @@ fn publishing_upgrade_keeps_independent_schema_two_recovery() {
         1
     );
 }
+
+#[test]
+fn markdown_import_keeps_image_titles_in_tables_and_footnotes() {
+    let (_directory, mut store) = fixture();
+    let source = tempfile::tempdir().unwrap();
+    fs::write(source.path().join("image.png"), png()).unwrap();
+    let input = "| Image |\n|---|\n| ![table](image.png \"Caption\") |\n\nFootnote[^one]\n\n[^one]: ![foot](image.png \"Foot caption\")\n\n```md\n![literal](image.png)\n```";
+    let result = store
+        .import_article(&source.path().join("article.md"), input)
+        .unwrap();
+    assert!(result.draft.body.contains("\"Caption\""));
+    assert!(result.draft.body.contains("\"Foot caption\""));
+    let images = media::images(&result.draft.body);
+    assert_eq!(images.len(), 2);
+    assert_eq!(images[0].title, "Caption");
+    assert!(result.draft.body.contains("![literal](image.png)"));
+    assert_eq!(store.draft_assets(&result.draft.id).unwrap().len(), 1);
+}

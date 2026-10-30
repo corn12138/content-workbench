@@ -4,7 +4,7 @@ use super::{
     WorkbenchStore,
 };
 use percent_encoding::percent_decode_str;
-use pulldown_cmark::{Event, Parser, Tag, TagEnd};
+use pulldown_cmark::{Event, Options, Parser, Tag, TagEnd};
 use std::{
     collections::BTreeMap,
     fs,
@@ -18,20 +18,29 @@ pub struct ImageReference {
     pub range: Range<usize>,
     pub destination: String,
     pub alt: String,
+    pub title: String,
 }
 
 pub fn images(markdown: &str) -> Vec<ImageReference> {
     let mut result = Vec::new();
     let mut current: Option<ImageReference> = None;
     let mut depth = 0;
-    for (event, range) in Parser::new(markdown).into_offset_iter() {
+    // Match the preview's GFM constructs so images in tables and footnotes are bundled too.
+    let options = Options::ENABLE_TABLES
+        | Options::ENABLE_STRIKETHROUGH
+        | Options::ENABLE_TASKLISTS
+        | Options::ENABLE_FOOTNOTES;
+    for (event, range) in Parser::new_ext(markdown, options).into_offset_iter() {
         match event {
-            Event::Start(Tag::Image { dest_url, .. }) => {
+            Event::Start(Tag::Image {
+                dest_url, title, ..
+            }) => {
                 if depth == 0 {
                     current = Some(ImageReference {
                         range,
                         destination: dest_url.to_string(),
                         alt: String::new(),
+                        title: title.to_string(),
                     });
                 }
                 depth += 1;
@@ -123,7 +132,18 @@ impl WorkbenchStore {
                         .replace('\\', "\\\\")
                         .replace('[', "\\[")
                         .replace(']', "\\]");
-                    replacements.push((image.range, format!("![{alt}](assets/{})", asset.name)));
+                    let title = if image.title.is_empty() {
+                        String::new()
+                    } else {
+                        format!(
+                            " \"{}\"",
+                            image.title.replace('\\', "\\\\").replace('"', "\\\"")
+                        )
+                    };
+                    replacements.push((
+                        image.range,
+                        format!("![{alt}](assets/{}{title})", asset.name),
+                    ));
                     assets.insert(asset.name.clone(), asset);
                 }
                 Err(error) => {

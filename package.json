@@ -31,16 +31,24 @@
   },
   "dependencies": {
     "@tauri-apps/api": "2.12.4",
+    "github-slugger": "^2.0.0",
+    "katex": "0.19.1",
     "lucide-react": "^0.468.0",
     "react": "19.3.1",
     "react-dom": "19.3.1",
     "react-markdown": "^10.1.0",
+    "rehype-highlight": "^7.0.2",
+    "rehype-katex": "^7.0.1",
+    "rehype-raw": "^7.0.0",
+    "rehype-sanitize": "^6.0.0",
     "remark-gfm": "^4.0.1",
+    "remark-math": "^6.0.0",
     "twitter-text": "^3.1.0",
     "zod": "^4.1.13"
   },
   "devDependencies": {
     "@tauri-apps/cli": "2.12.4",
+    "@types/hast": "^3.0.4",
     "@types/node": "^24.10.0",
     "@types/react": "^19.2.0",
     "@types/react-dom": "^19.2.0",
@@ -81,5 +89,8 @@
   "homepage": "https://github.com/corn12138/content-workbench",
   "bugs": {
     "url": "https://github.com/corn12138/content-workbench/issues"
+  },
+  "overrides": {
+    "katex": "$katex"
   }
 }

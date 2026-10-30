@@ -1,6 +1,10 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { checkXText, sensitiveText } from "../src/renderer/publishing/text";
+import {
+  checkXText,
+  sensitiveText,
+  initialXText,
+} from "../src/renderer/publishing/text";
 import {
   filterReadings,
   readingIndex,
@@ -74,4 +78,10 @@ test("aggregation searches cached content and notes, filters source without drop
     filterReadings(readings, library, "unread", "", "React"),
     [],
   );
+});
+
+test("long articles start with the title rather than overloading the short-post editor", () => {
+  assert.equal(initialXText("Title", "Body"), "Title\n\nBody");
+  assert.equal(initialXText("Title", "x".repeat(1_000_000)), "Title");
+  assert.equal(initialXText("Title", "![image](assets/example.png)"), "Title");
 });

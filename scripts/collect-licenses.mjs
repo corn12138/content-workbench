@@ -56,6 +56,15 @@ async function collect(ecosystem, name, version, expression, directory, extra = 
       entries.push({ name: "LICENSE" });
     }
   }
+  if (!entries.length && ecosystem === "npm") {
+    // These workspace packages publish their MIT declaration without the repository-level license text.
+    const revision = { "rehype-katex@7.0.1": "88a9497e1ede93b958237c85edbf5651faeca7af", "remark-math@6.0.0": "d5d0660b150810a535bbb07eac6cc96a4510aa24" }[`${name}@${version}`];
+    if (revision) {
+      extra.licenseSource = `https://raw.githubusercontent.com/remarkjs/remark-math/${revision}/license`;
+      await writeFile(join(destination, "LICENSE"), await fetchText(extra.licenseSource));
+      entries.push({ name: "LICENSE" });
+    }
+  }
   if (!entries.length) missing.push(`${name}@${version}`);
   inventory.push({ ecosystem, name, version, license: expression, ...extra, licenseDirectory: `licenses/${id}` });
 }

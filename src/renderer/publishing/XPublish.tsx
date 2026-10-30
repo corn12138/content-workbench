@@ -2,7 +2,7 @@ import { useRef, useState } from "react";
 import type { Draft, PublishReceipt, XAccount } from "../../shared/contracts";
 import { api, errorMessage } from "../api";
 import { XConnection } from "./XConnection";
-import { checkXText, sensitiveText } from "./text";
+import { checkXText, sensitiveText, initialXText } from "./text";
 
 export function XPublish({
   draft,
@@ -16,7 +16,7 @@ export function XPublish({
   notify: (message: string) => void;
 }) {
   const [account, setAccount] = useState<XAccount | null>(null);
-  const [text, setText] = useState(`${draft.title}\n\n${draft.body}`.trim());
+  const [text, setText] = useState(() => initialXText(draft.title, draft.body));
   const [acknowledged, setAcknowledged] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -95,7 +95,7 @@ export function XPublish({
         {check.length} / 280 · 中文通常计 2，链接计 23
       </p>
       <p className="muted small">
-        仅发布上方纯文本，不会自动拆分长文或上传稿件图片。这里的修改不会改变原稿。
+        长文默认只带入标题，请补充简介或文章链接。仅发布上方文字，不自动拆分或上传图片，也不改变原稿。
       </p>
       {check.localAsset && (
         <p className="inline-error">请移除本机图片和文件路径后再发布。</p>

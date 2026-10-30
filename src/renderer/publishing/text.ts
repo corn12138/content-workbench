@@ -14,3 +14,11 @@ export function checkXText(text: string) {
     localAsset,
   };
 }
+
+export function initialXText(title: string, body: string) {
+  const candidate = `${title}\n\n${body}`.trim();
+  // Long-form drafts can reach a million characters; avoid parsing them as a tweet on the UI thread.
+  return candidate.length <= 1000 && checkXText(candidate).valid
+    ? candidate
+    : title.trim();
+}
