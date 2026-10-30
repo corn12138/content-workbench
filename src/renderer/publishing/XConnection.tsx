@@ -90,7 +90,7 @@ export function XConnection({
       <div className="setting-row">
         <div>
           <strong>
-            X {account?.connected ? `· @${account.username}` : "账号"}
+            X（实验性） {account?.connected ? `· @${account.username}` : "账号"}
           </strong>
           <p>
             {loading

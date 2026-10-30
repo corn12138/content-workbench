@@ -105,6 +105,15 @@
   assert(md.querySelector(".local-image").title === "图片标题", "Image title lost");
   assert([...md.querySelectorAll("img")].every(img => img.src.startsWith("data:")), "Remote image request allowed");
   await wait(() => diagramsReady(md), "Mermaid diagram rendered");
+  const observedTheme = [
+    ["h1", "24px", "38px"], ["h2", "22px", "34px"], ["h3", "20px", "28px"],
+    ["h4", "18px", "26px"], ["h5", "17px", "24px"], ["h6", "16px", "24px"],
+    ["p", "16px", "28px"], ["table", "12px", "21px"], ["th", "12px", "24px"],
+  ];
+  for (const [selector, size, line] of observedTheme) {
+    const style = getComputedStyle(md.querySelector(selector));
+    assert(style.fontSize === size && style.lineHeight === line, `Juejin typography differs: ${selector}`);
+  }
   const editorHTML = md.innerHTML;
   const editorAppearance = await appearance(md);
   const editorDiagrams = await diagramPixels(md);
@@ -225,7 +234,7 @@
   snapshot = await api.snapshot();
   assert(snapshot.drafts.some((draft) => draft.body.includes("来源：https://example.com/engineering-notes")), "Converted note lost attribution");
   await step("full_backup_roundtrip");
-  await step("complete", { mermaidDiagramRendered: true, mermaidErrorsVisible: true, remoteImagesOptIn: true, privateRemoteImageBlocked: true, markdownHistoryParity: true, markdownEqualWidthAppearance: true, mermaidPixelParity: true, markdownFixtureRendered: true, markdownAnchorsScoped: true, markdownEditorPublishParity: true, markdownNarrowLayout: true, xSetupRendered: true, unauthenticatedPublishBlocked: true, cachedContentSearch: true, storedImageRendered: true, rssContentRendered: true, privateFeedBlocked: true, fullBackupRoundtrip: true, rendererIsolation: true, autosaveOnNavigation: true, markdownSanitized: true, nativeClipboard: clipboardAvailable, nativeClipboardSkipped: !clipboardAvailable, manualPublicationRecorded: true, readingNoteSaved: true, readingToDraft: true, narrowViewport: true });
+  await step("complete", { mermaidDiagramRendered: true, mermaidErrorsVisible: true, remoteImagesOptIn: true, privateRemoteImageBlocked: true, markdownHistoryParity: true, markdownEqualWidthAppearance: true, juejinMeasuredTypography: true, mermaidPixelParity: true, markdownFixtureRendered: true, markdownAnchorsScoped: true, markdownEditorPublishParity: true, markdownNarrowLayout: true, xSetupRendered: true, unauthenticatedPublishBlocked: true, cachedContentSearch: true, storedImageRendered: true, rssContentRendered: true, privateFeedBlocked: true, fullBackupRoundtrip: true, rendererIsolation: true, autosaveOnNavigation: true, markdownSanitized: true, nativeClipboard: clipboardAvailable, nativeClipboardSkipped: !clipboardAvailable, manualPublicationRecorded: true, readingNoteSaved: true, readingToDraft: true, narrowViewport: true });
   // Closing immediately exercises the pending-save barrier instead of waiting for debounce.
   fill('[aria-label="文章标题"]', "Tauri 测试样本 · 关闭时保存");
   await step("close");

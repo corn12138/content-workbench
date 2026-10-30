@@ -23,7 +23,7 @@ Mermaid 固定配置，本机绘制，不向在线图表服务发送正文。配
 
 ## 外部平台边界
 
-- 掘金：本轮访问其编辑器后进入登录页，未修改或发布平台草稿。缺少真实平台渲染结果，因此没有跨平台逐像素一致的证据。
+- 掘金：已在 Chrome 登录后的编辑器建立公开样例草稿并读取实际预览，未发布文章。标题、列表、表格、代码、公式、脚注、Mermaid 流程图与时序图均有对应输出；最终发布页面和移动端仍未验收。
 - X：本版发布纯文本短帖，发送内容以右侧短帖编辑框为准；左侧 Markdown 是原稿参考。[官方创建帖子接口](https://docs.x.com/x-api/posts/create-post)接收文本与媒体等字段。真实授权和发帖待用户配置开发者应用后单独验收。
 - 本机的同宽布局和图表像素检查不等于全页截图逐像素检查，也不能穷举所有 Markdown 方言或系统字体。最终发文前仍应核对平台预览。
 
@@ -34,3 +34,13 @@ Mermaid 固定配置，本机绘制，不向在线图表服务发送正文。配
 2026-10-29，本机 macOS 原生桌面两阶段测试通过，三个预览入口的同宽排版与图表像素对照通过。Node 测试 22 项通过，Rust 离线测试 40 项通过；网络专项测试不纳入离线计数。源码路径检查覆盖 1031 个文件，暂存内容、完整历史与展开的源码快照均通过敏感信息扫描，依赖审计无已知漏洞。
 
 本轮原生测试环境未提供剪贴板权限，因此复制按钮的系统剪贴板验证标记为跳过；不把这一项算作通过。完整状态保存在本机生成的 `artifacts/tauri-comparison/native-smoke.json`，该目录不随源码提交。远端 CI 状态以 PR 检查为准。
+
+## 0.3.0 掘金实际对照
+
+公开测试原文见 `tests/fixtures/juejin-preview.md`。采用掘金默认编辑器主题，预览容器宽 624 px。实际测得正文 16/28 px（字号/行高）、颜色 #252933；H1 至 H6 分别为 24/38、22/34、20/28、18/26、17/24、16/24 px。普通段落上下间距 22 px，标题上间距 35 px；表格字号 12 px、单元格行高 24 px。工作台三个预览入口统一使用这些基础排版值，并把九类元素的字号/行高加入原生回归。
+
+公开 PNG 链接被掘金尝试转存后失败，平台会把图片 Markdown 改写为失败提示。因此平台侧图片上传/转存必须独立检查。工作台不会模仿这个改写并破坏原文。
+
+代码行号/工具栏、脚注本地化、平台主题、图表与公式库版本仍可能造成视觉差异。这个结果证明特定样例在编辑器中的支持情况及已测基础排版一致，不等于发布后或所有内容逐像素零差异。后续验收和复现入口见 [Issue #3](https://github.com/corn12138/content-workbench/issues/3)。
+
+Next handoff: Read repository instructions and this verification report. Preserve releases and original user data. Reproduce the remaining differences in issue #3 with public fixtures; never publish an article or disclose account data merely to obtain a screenshot. Validate issue #4 only with an owner-configured Native App and explicitly approved test content.

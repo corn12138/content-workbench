@@ -4,11 +4,11 @@
 
 A local-first desktop workspace for developer writing, assisted publishing and reading notes. Built with Tauri 2, Rust and React. No AI service or account is required for the local workflow.
 
-**最新已发布版本为 0.2.0**，支持图片随稿保存、完整备份和 RSS 阅读。当前开发分支为 **0.3.0-dev.1**，新增 X 授权/发布配置入口与聚合预览；真实 X 账号连通尚待开发者应用配置后验收，见[配置与能力边界](docs/publishing-and-preview.md)。已验证平台为 macOS Apple Silicon；Windows、Linux 和 Intel Mac 尚未验收。
+**当前版本为 0.3.0**，支持图片随稿保存、完整备份、RSS 阅读和增强 Markdown 预览；X 授权与短帖发布为实验性功能，真实账号连通尚待开发者应用配置后验收，见[配置与能力边界](docs/publishing-and-preview.md)。已验证平台为 macOS Apple Silicon；Windows、Linux 和 Intel Mac 尚未验收。
 
 ## 下载与开始
 
-从 [Releases](https://github.com/corn12138/content-workbench/releases) 下载 `content-workbench-0.2.0-macos-arm64.zip`，解压后将「内容工作台.app」放入应用程序目录并打开。
+从 [Releases](https://github.com/corn12138/content-workbench/releases) 下载 `content-workbench-0.3.0-macos-arm64.zip`，解压后将「内容工作台.app」放入应用程序目录并打开。
 
 当前版本未使用 Apple Developer ID 签名或公证，macOS 可能阻止首次打开。请先核对下载来源和发行页 SHA-256；确认信任后可在系统设置的「隐私与安全性」中使用系统提供的打开选项。不要关闭系统全局安全保护；不希望运行未公证应用时，可按下方步骤从源码构建。
 
@@ -26,7 +26,7 @@ A local-first desktop workspace for developer writing, assisted publishing and r
 - SQLite 本地存储；单个 `.cwb` 备份包含正文、历史、图片、发布记录、订阅和笔记，兼容导入旧 JSON 文字备份。
 - 有本地图片的文章导出为 ZIP（`article.md` + `assets/`），解压后可重新导入；纯文字文章仍导出 Markdown。
 
-**开发分支新增**：Markdown 安全 HTML、公式和 Mermaid 图表预览，外链图片点击加载；正文、历史与发布窗口共用渲染器，见[预览对照范围](docs/markdown-preview-verification.md)。X Native App 配置、浏览器授权、纯文本预览确认发布及平台回执；RSS 来源筛选、缓存内容搜索和全文优先预览。X 凭证使用 macOS 钥匙串，不进入资料备份。未配置开发者应用时不会向 X 发帖。
+**0.3.0 新增**：Markdown 安全 HTML、公式和 Mermaid 图表预览，外链图片点击加载；正文、历史与发布窗口共用渲染器，见[预览对照范围](docs/markdown-preview-verification.md)。X Native App 配置、浏览器授权、纯文本预览确认发布及平台回执；RSS 来源筛选、缓存内容搜索和全文优先预览。X 凭证使用 macOS 钥匙串，不进入资料备份。未配置开发者应用时不会向 X 发帖。
 
 **尚未实现**：平台自动上传图片、评论及浏览量同步、后台采集、云同步和自动更新。发布时需在平台上传图片。关闭窗口后应用退出，不持续采集；反馈页不会生成模拟评论或统计。
 
@@ -57,7 +57,7 @@ npm run release:mac
 
 ## 数据与回退
 
-开发分支升级到 schema 3 前保留 0.2.0 数据库副本；旧版不会打开新库。升级与授权配置的回退边界见[发布授权说明](docs/publishing-and-preview.md#兼容与回退)。
+0.3.0 升级到 schema 3 前保留 0.2.0 数据库副本；旧版不会打开新库。升级与授权配置的回退边界见[发布授权说明](docs/publishing-and-preview.md#兼容与回退)。
 
 Tauri 正式应用资料在 `~/Library/Application Support/local.contentworkbench.tauri/`，开发资料在 `.tauri-data/`。备份含正文，属于私人资料，请自行安全保存，不要上传到 Issue。
 
@@ -77,3 +77,5 @@ Electron 源码和构建入口继续保留：`npm run dev:electron`、`npm run p
 - [发行验收](docs/release-verification.md) 与 [变更记录](CHANGELOG.md)
 
 本项目采用 [Apache-2.0](LICENSE)。依赖保留各自许可证，详见 [第三方声明](THIRD_PARTY_NOTICES.md)。平台服务的账号权限和费用不由开源许可证覆盖。
+
+预览已用登录后的掘金编辑器测试草稿对照。尚存的平台样式与图片转存差异见 [Issue #3](https://github.com/corn12138/content-workbench/issues/3)，X 真实账号验收见 [Issue #4](https://github.com/corn12138/content-workbench/issues/4)。[0.2.0 下载](https://github.com/corn12138/content-workbench/releases/tag/v0.2.0)继续保留。
