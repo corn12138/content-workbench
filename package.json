@@ -1,6 +1,6 @@
 {
   "name": "content-workbench",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "private": true,
   "description": "A local desktop workspace for writing, publishing and reading, without AI.",
   "author": "Content Workbench",
@@ -27,7 +27,8 @@
     "smoke:desktop": "node scripts/smoke-desktop.mjs",
     "release:mac": "node scripts/release-macos.mjs",
     "audit:source": "node scripts/audit-public-source.mjs",
-    "licenses": "node scripts/collect-licenses.mjs"
+    "licenses": "node scripts/collect-licenses.mjs",
+    "package:updater": "node scripts/package-updater.mjs"
   },
   "dependencies": {
     "@tauri-apps/api": "2.12.4",
@@ -35,6 +36,7 @@
     "github-slugger": "^2.0.0",
     "katex": "0.19.1",
     "lucide-react": "^0.468.0",
+    "mdast-util-to-string": "^4.0.0",
     "mermaid": "11.17.2",
     "react": "19.3.1",
     "react-dom": "19.3.1",
@@ -45,7 +47,9 @@
     "rehype-sanitize": "^6.0.0",
     "remark-gfm": "^4.0.1",
     "remark-math": "^6.0.0",
+    "remark-parse": "^11.0.0",
     "twitter-text": "^3.1.0",
+    "unified": "^11.0.5",
     "zod": "^4.1.13"
   },
   "devDependencies": {

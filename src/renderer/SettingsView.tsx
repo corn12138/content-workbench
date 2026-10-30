@@ -4,13 +4,19 @@ import type { AppInfo } from "../shared/contracts";
 import { XConnection } from "./publishing/XConnection";
 import "./publishing/publishing.css";
 import { api, errorMessage } from "./api";
+import { UpdateSection } from "./updates/UpdateSection";
+import type { Updates } from "./updates/useUpdates";
 
 export function SettingsView({
   onRestored,
   notify,
+  updates,
+  installUpdate,
 }: {
   onRestored: () => Promise<void>;
   notify: (message: string) => void;
+  updates: Updates;
+  installUpdate: () => void;
 }) {
   const [info, setInfo] = useState<AppInfo | null>(null);
   const [busy, setBusy] = useState(false);
@@ -116,6 +122,11 @@ export function SettingsView({
             : "订阅功能请使用 Tauri 版。"}
         </p>
       </section>
+      <UpdateSection
+        updates={updates}
+        install={installUpdate}
+        notify={notify}
+      />
       <footer className="settings-footer">
         内容工作台 {info?.version || "0.1.0"} · 本地基础版{" "}
         <ArrowUpRight size={13} />

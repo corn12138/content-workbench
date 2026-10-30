@@ -157,7 +157,13 @@ pub fn comparison_step(
                 .iter()
                 .find(|d| d.title.contains("Tauri 本地测试样本"))
                 .ok_or("Clipboard fixture absent")?;
-            let correct = app.clipboard().read_text().map_err(|e| e.to_string())? == expected.body;
+            let adapted = expected
+                .body
+                .replacen("## 中文标题", "## <a id=\"cwb-heading-2\"></a>中文标题", 1)
+                .replacen("## 中文标题", "## <a id=\"cwb-heading-7\"></a>中文标题", 1)
+                .replace("](\u{23}中文标题)", "](\u{23}user-content-cwb-heading-2)")
+                .replace("](\u{23}中文标题-1)", "](\u{23}user-content-cwb-heading-7)");
+            let correct = app.clipboard().read_text().map_err(|e| e.to_string())? == adapted;
             restore_clipboard(&app)?;
             if !correct {
                 return Err("Native clipboard did not contain the draft body".into());

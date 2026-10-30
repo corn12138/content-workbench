@@ -94,6 +94,14 @@ export interface PublishReceipt {
   warning: string | null;
 }
 export interface WorkbenchAPI {
+  checkUpdate?(): Promise<{ version: string; notes: string } | null>;
+  installUpdate?(version: string): Promise<void>;
+  openUpdateBackups?(): Promise<void>;
+  onUpdateProgress?(handler: (message: string) => void): () => void;
+  prepareImages?(
+    id: string,
+    revision: number,
+  ): Promise<{ draft: Draft; count: number; warnings: string[] }>;
   xAccount?(): Promise<XAccount>;
   xConnect?(clientId: string): Promise<XAccount>;
   xCancel?(): Promise<void>;

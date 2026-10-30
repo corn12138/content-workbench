@@ -7,6 +7,9 @@ use tauri_plugin_dialog::{
 
 pub fn request_close(app: &AppHandle) {
     let state = app.state::<AppState>();
+    if state.updating.load(Ordering::SeqCst) {
+        return;
+    }
     if state.can_close.load(Ordering::SeqCst) || state.close_pending.swap(true, Ordering::SeqCst) {
         return;
     }
@@ -20,6 +23,7 @@ pub fn request_close(app: &AppHandle) {
         std::thread::sleep(std::time::Duration::from_secs(6));
         let state = app.state::<AppState>();
         if state.can_close.load(Ordering::SeqCst)
+            || state.updating.load(Ordering::SeqCst)
             || state.close_attempt.load(Ordering::SeqCst) != attempt
             || !state.close_pending.load(Ordering::SeqCst)
         {
@@ -63,6 +67,9 @@ pub fn request_close(app: &AppHandle) {
 pub fn finish_close(window: WebviewWindow, app: AppHandle, attempt: u64) -> Result<(), String> {
     trusted(&window)?;
     let state = app.state::<AppState>();
+    if state.updating.load(Ordering::SeqCst) {
+        return Err("升级正在进行，请稍等。".into());
+    }
     // A completed save from a cancelled attempt cannot terminate a later editing session.
     if !state.close_pending.load(Ordering::SeqCst)
         || state.close_attempt.load(Ordering::SeqCst) != attempt

@@ -23,6 +23,14 @@ async function call<T>(
 export async function createTauriAPI(): Promise<WorkbenchAPI> {
   const closeHandlers = new Set<(attempt?: number) => void>();
   const cancelHandlers = new Set<() => void>();
+  const updateHandlers = new Set<(message: string) => void>();
+  const stopUpdate = await listen<string>(
+    "workbench:update-progress",
+    (event) => {
+      for (const handler of updateHandlers) handler(event.payload);
+    },
+  );
+  window.addEventListener("unload", stopUpdate, { once: true });
   // Register before mounting React so native close cannot overtake asynchronous listener setup.
   const unlisten: UnlistenFn = await listen<number>(
     "workbench:before-close",
@@ -36,6 +44,19 @@ export async function createTauriAPI(): Promise<WorkbenchAPI> {
   window.addEventListener("unload", stopCancel, { once: true });
   window.addEventListener("unload", unlisten, { once: true });
   return {
+    checkUpdate: () => call("check_update", undefined, false),
+    async installUpdate(version) {
+      while (pending.size) await Promise.allSettled([...pending]);
+      return call("install_update", { version });
+    },
+    openUpdateBackups: () => call("open_update_backups"),
+    onUpdateProgress(handler) {
+      updateHandlers.add(handler);
+      return () => {
+        updateHandlers.delete(handler);
+      };
+    },
+    prepareImages: (id, revision) => call("prepare_images", { id, revision }),
     xAccount: () => call("x_account", undefined, false),
     xConnect: (clientId) => call("x_connect", { clientId }, false),
     xCancel: () => call("x_cancel", undefined, false),

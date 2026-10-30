@@ -11,6 +11,7 @@ mod full_backup;
 mod library_schema;
 pub mod media;
 pub mod models;
+mod prepared_images;
 mod publishing_schema;
 mod records;
 #[cfg(test)]

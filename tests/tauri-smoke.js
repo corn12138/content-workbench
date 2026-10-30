@@ -29,7 +29,7 @@
     container.style.width = "340px";
     container.style.maxWidth = "none";
     try {
-      return [...container.querySelectorAll("*")].map(node => {
+      return [...container.querySelectorAll("*")].filter(node => !node.id.includes("user-content-cwb-heading-")).map(node => {
         const style = getComputedStyle(node);
         const rect = node.getBoundingClientRect();
         return {
@@ -138,9 +138,15 @@
   await wait(() => preview.querySelector(".local-image")?.naturalWidth === 4, "publish image preview");
   await wait(() => diagramsReady(preview), "publish Mermaid rendered");
   // Mermaid sequence diagrams use process-global actor IDs; those inert image-local identifiers do not change pixels.
-  const normalizePreview = (html, container) => html
+  const normalizePreview = (html, container) => {
+    for (const target of container.querySelectorAll('[id*="user-content-cwb-heading-"]')) {
+      assert(target.parentElement.matches("h1,h2,h3,h4,h5,h6"), "Generated anchor is not inline in heading");
+      html = html.replaceAll(`href="#${target.id}"`, `href="#${target.parentElement.id}"`).replace(target.outerHTML, "");
+    }
+    return html
     .replace(/data:image\/svg\+xml;charset=utf-8,([^"]+)/g, (_, svg) => `data:image/svg+xml;charset=utf-8,${encodeURIComponent(decodeURIComponent(svg).replace(/id="(?:actor|root-)\d+"/g, 'id="participant"'))}`)
     .replaceAll(container.querySelector("h1").id.slice(0, -"markdown-预览验收".length), "md-SCOPE-");
+  };
   const compareMarkup = (actual, expected, label) => {
     if (actual === expected) return;
     const left = actual, right = expected;
@@ -203,6 +209,17 @@
   await click("加载这张图片");
   await wait(() => document.querySelector(".image-placeholder")?.textContent.includes("外链图片无法读取"), "private remote image blocked");
   assert(!document.querySelector(".editor-content .markdown img"), "Private remote image rendered");
+  await click("准备发布");
+  await wait(() => button("准备图片"), "image preparation entry");
+  await click("准备图片");
+  await wait(() => document.querySelector(".image-preparation")?.textContent.includes("没有可用图片"), "private image preparation rejected");
+  assert(document.querySelector(".image-preparation")?.textContent.includes("第 1 张图片"), "Image failure must identify its position");
+  document.querySelector('[aria-label="关闭发布预览"]').click();
+  await click("设置");
+  await wait(() => button("检查更新"), "updater settings");
+  await click("检查更新");
+  await wait(() => document.body.textContent.includes("开发预览版不检查线上更新"), "debug updater stays offline");
+  assert(!button("升级到 0.4.0"), "A failed check must not offer installation");
   await click("阅读");
   await wait(() => document.querySelector(".reading-workspace"), "reading workspace");
   await wait(() => document.querySelector(".reading-excerpt")?.textContent.includes("Offline subscription content"), "RSS cached content");
@@ -234,7 +251,7 @@
   snapshot = await api.snapshot();
   assert(snapshot.drafts.some((draft) => draft.body.includes("来源：https://example.com/engineering-notes")), "Converted note lost attribution");
   await step("full_backup_roundtrip");
-  await step("complete", { mermaidDiagramRendered: true, mermaidErrorsVisible: true, remoteImagesOptIn: true, privateRemoteImageBlocked: true, markdownHistoryParity: true, markdownEqualWidthAppearance: true, juejinMeasuredTypography: true, mermaidPixelParity: true, markdownFixtureRendered: true, markdownAnchorsScoped: true, markdownEditorPublishParity: true, markdownNarrowLayout: true, xSetupRendered: true, unauthenticatedPublishBlocked: true, cachedContentSearch: true, storedImageRendered: true, rssContentRendered: true, privateFeedBlocked: true, fullBackupRoundtrip: true, rendererIsolation: true, autosaveOnNavigation: true, markdownSanitized: true, nativeClipboard: clipboardAvailable, nativeClipboardSkipped: !clipboardAvailable, manualPublicationRecorded: true, readingNoteSaved: true, readingToDraft: true, narrowViewport: true });
+  await step("complete", { imagePreparationFailureVisible: true, updateSettingsOfflineGuard: true, juejinInlineAnchorAdaptation: true, mermaidDiagramRendered: true, mermaidErrorsVisible: true, remoteImagesOptIn: true, privateRemoteImageBlocked: true, markdownHistoryParity: true, markdownEqualWidthAppearance: true, juejinMeasuredTypography: true, mermaidPixelParity: true, markdownFixtureRendered: true, markdownAnchorsScoped: true, markdownEditorPublishParity: true, markdownNarrowLayout: true, xSetupRendered: true, unauthenticatedPublishBlocked: true, cachedContentSearch: true, storedImageRendered: true, rssContentRendered: true, privateFeedBlocked: true, fullBackupRoundtrip: true, rendererIsolation: true, autosaveOnNavigation: true, markdownSanitized: true, nativeClipboard: clipboardAvailable, nativeClipboardSkipped: !clipboardAvailable, manualPublicationRecorded: true, readingNoteSaved: true, readingToDraft: true, narrowViewport: true });
   // Closing immediately exercises the pending-save barrier instead of waiting for debounce.
   fill('[aria-label="文章标题"]', "Tauri 测试样本 · 关闭时保存");
   await step("close");

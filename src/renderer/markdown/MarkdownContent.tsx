@@ -23,6 +23,7 @@ export const MarkdownContent = memo(function MarkdownContent({
   const components = useMemo<Components>(
     () => ({
       a: ({ href, children, node: _node, ...props }) => {
+        if (!href && props.id) return <span {...props}>{children}</span>;
         const external = externalURL(href);
         const fragment = href?.startsWith("#");
         if (!external && !fragment)
