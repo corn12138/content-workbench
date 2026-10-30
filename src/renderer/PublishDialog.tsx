@@ -27,6 +27,7 @@ export function PublishDialog({
   const dialog = useRef<HTMLDialogElement>(null);
   const [url, setURL] = useState("");
   const [busy, setBusy] = useState(false);
+  const [recording, setRecording] = useState(false);
   const [error, setError] = useState("");
   const [copied, setCopied] = useState(false);
   const [platform, setPlatform] = useState<"juejin" | "x">("juejin");
@@ -38,6 +39,7 @@ export function PublishDialog({
   }, []);
   const record = async () => {
     setBusy(true);
+    setRecording(true);
     setError("");
     try {
       if (
@@ -56,6 +58,7 @@ export function PublishDialog({
       setError(errorMessage(error));
     } finally {
       setBusy(false);
+      setRecording(false);
     }
   };
   return (
@@ -234,7 +237,7 @@ export function PublishDialog({
               disabled={!url.trim() || busy}
               onClick={() => void record()}
             >
-              {busy ? "记录中…" : "记录发布链接"}
+              {recording ? "记录中…" : "记录发布链接"}
             </button>
             <small>只记录链接，不会代你发布或修改文章。</small>
           </div>
