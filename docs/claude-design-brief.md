@@ -1,91 +1,97 @@
-# 给 Claude Design：内容工作台界面与交互设计
+# Claude Design Brief: Content Workbench UI and Interaction Design
 
-请作为产品设计师，为下面这个已经运行的开源桌面应用完成一套可以交给工程师落地的 UI 与交互方案。直接开展设计；信息不足时采用下文默认方案，并写明你的取舍。交付重点是可操作的高保真原型、状态与设计规范。
+Act as the product designer for the existing open-source desktop application described below. Create a complete UI and interaction design that engineers can implement. Begin designing directly. When details are missing, use the defaults in this brief and explain your decisions. Prioritize an interactive high-fidelity prototype, complete interaction states, and implementation-ready specifications.
 
-## 产品与使用者
+## Product and Users
 
-产品名：内容工作台 Content Workbench。
+Product name: Content Workbench. Preserve its existing Chinese brand name in the production interface.
 
-它是个人开发者的无 AI 本地桌面工作台：把在 Codex、Claude 或项目中写好的 Markdown 放进来，整理、预览并分享；把订阅文章集中阅读，记录自己的想法，再将笔记变成新稿件。
+Content Workbench is a local desktop workspace for individual developers. Users bring in Markdown written in Codex, Claude, or their project tools, organize it, preview it, and share it. They also read subscribed articles, capture their own observations, and turn notes into new drafts. The application itself does not require or integrate AI for these workflows.
 
-用户通常独自使用，希望打开就能写、看和发。日常使用无需注册工作台账号，无需配置模型。复杂的存储、平台适配和恢复逻辑由程序处理。目标感受：安静、清楚、舒展，适合连续写作和阅读两小时。
+Most users work independently and want to start writing, reading, or preparing a publication immediately. Everyday local use requires neither a workbench account nor model configuration. The application handles storage, platform adaptation, and recovery internally. Aim for a calm, clear, spacious experience that remains comfortable during a two-hour writing or reading session.
 
-技术约束：Tauri 2 + Rust + React + TypeScript，原生 macOS 窗口，现有桌面尺寸 1180×800、最小 800×620。实现使用普通 CSS 与 Lucide 图标。可以交付独立 React 原型；使用确定的演示数据，并明确标记原型。生产功能最终接入现有桌面接口。
+Technical constraints: Tauri 2, Rust, React, and TypeScript, inside a native macOS window. The current default window is 1180 by 800 pixels, with a minimum of 800 by 620. The implementation uses plain CSS and Lucide icons. You may deliver a standalone React prototype with deterministic demonstration data, clearly identified as a prototype. Production functionality will connect to the existing desktop APIs.
 
-## 当前能力：设计必须表达真实状态
+## Existing Capabilities and Honest Product States
 
-| 区域 | 已有能力 | 必须说明的边界 |
+| Area | Existing capabilities | Boundaries the design must communicate |
 | --- | --- | --- |
-| 稿件 | Markdown 导入、新建、搜索、自动保存、图片、预览、历史、归档恢复、导出 | 编辑、历史、发布预览共享同一套排版；当前已有公式、Mermaid、代码、表格和目录 |
-| 掘金 | 发布前预览、目录适配、准备图片、复制并打开、记录发布链接 | 当前在掘金网页完成上传和发布；复制正文不等于发布成功 |
-| X | Client ID 配置、账号连接、短帖编辑、预览确认、发布回执的实现 | 真实账号尚未连通，用户没有开发者应用；未连接时明确显示下一步 |
-| 阅读 | RSS / Atom、来源筛选、缓存搜索、已读、正文或摘要、笔记、笔记转稿 | 手动更新；有些来源只有摘要；外链图片点击后加载；没有任意网页全文抓取 |
-| 发布记录 | 已保存作品、平台、时间、人工确认或 API 回执、打开原文 | 评论与浏览量尚未接入，缺失不能画成数字 0 或增长图 |
-| 设置 | 备份恢复、数据位置、平台连接、检查更新、升级备份入口 | 自动检查后由用户确认升级；关闭应用会退出，没有后台采集 |
+| Drafts | Markdown import, creation, search, autosave, images, preview, history, archive and restore, export | Editor, history, and publishing previews share one rendering system, including math, Mermaid, code, tables, and heading anchors |
+| Juejin | Publishing preview, heading-link adaptation, image preparation, copy-and-open, publication URL recording | Uploading images and completing publication currently happen on Juejin's website; copying content is not publication success |
+| X | Implemented Client ID configuration, account connection, short-post editing, review and confirmation, publication receipts | A real account has not been validated, and the user has not created a developer application; disconnected states must offer an accurate next step |
+| Reading | RSS and Atom, source filtering, cached-text search, read status, article bodies or summaries, notes, notes-to-draft | Refresh is manual; some sources supply only summaries; external images load on explicit request; arbitrary website full-text extraction is unavailable |
+| Publication records | Saved publications, platform, time, manual confirmation or API receipt, opening the published page | Comments and view counts are not integrated; unavailable metrics must not appear as zero or as fabricated charts |
+| Settings | Backup and restore, data location, platform connections, update checks, upgrade-backup access | Updates are checked automatically but installed after user confirmation; closing the app exits it, with no background collection |
 
-目前公开发行基线为 0.4.0，本地开发基线为 0.5.0-dev.1。新版本已保留 RSS 标题、段落、列表、代码缩进、表格和链接。设计不要退回只显示一团摘要文字。
+The recorded public release baseline is 0.4.0; the local development baseline is 0.5.0-dev.1. The development version already preserves RSS headings, paragraphs, lists, code indentation, tables, and links. Keep that structured reading experience intact.
 
-## 信息架构与默认视觉方向
+## Information Architecture and Visual Direction
 
-主导航采用「稿件」「阅读」「发布记录」，「设置」置于底部。「发布记录」对应当前名为「反馈」的页面，不改变其数据含义。品牌名保持「内容工作台」。
+Use three primary navigation destinations: Drafts, Reading, and Publication Records. Place Settings at the bottom. Publication Records corresponds to the existing page called Feedback; its underlying data and capabilities remain the same.
 
-默认采用浅色：温暖的近白内容面、略有区分的侧栏、深灰文字、低饱和绿色强调色。通过字重、间距、对齐和留白建立秩序；色彩只用于主动作、选中和真实状态。避免大面积装饰、过多卡片和密集边框。可微调颜色，但交付一套明确方案。
+Use a light theme by default: warm off-white content surfaces, a subtly differentiated sidebar, dark gray text, and a restrained, low-saturation green accent. Establish hierarchy through typography, spacing, alignment, and whitespace. Use color for primary actions, selection, and meaningful states. Keep decorative surfaces, cards, and borders restrained. You may refine the palette, but deliver one coherent direction.
 
-中文界面，使用本机系统字体，正文、代码、辅助信息层级清楚。文字和可操作区域在普通笔记本上易读、易点击。状态不能只靠颜色区分；键盘焦点始终清楚。使用少量短过渡，支持减少动态效果。本轮先完成浅色桌面体验，暗色与手机端另列后续。
+The production interface must be in Simplified Chinese. This brief uses English descriptions for navigation and actions; supply concise, natural Chinese UI copy in the actual design. Use local system fonts with clear distinctions between article content, code, and supporting information. Text and controls must be readable and comfortable on an ordinary laptop. Communicate states through more than color, keep keyboard focus visible, and use brief, subtle transitions with reduced-motion support. Complete the light desktop experience first; treat dark mode and mobile as later work.
 
-重要约束：文章内部排版已有掘金对照基线，正文 16px、行高 1.75。UI 的标题、卡片、背景和外部间距可以重做；不要通过全局样式改变 Markdown 的代码缩进、公式、图表、表格、目录和文章内部排版。示意稿不能承诺与掘金最终发布页零差异。
+Important constraint: article typography already has a Juejin comparison baseline, with 16px body text and a line height of 1.75. You may redesign interface headings, containers, backgrounds, and surrounding spacing. Preserve Markdown's internal typography, code indentation, formulas, diagrams, tables, and anchors. Global interface styles must not override these article styles. Do not promise pixel-identical rendering against Juejin's final published pages.
 
-## 必须设计的使用场景
+## Required User Journeys
 
-### 1. 打开就能开始写
+### 1. Start Writing Immediately
 
-首次打开，清楚提供「导入 Markdown」和「新建稿件」，用一句话解释本地保存。已有文章时，列表能看清标题、更新时间和必要状态。项目归属是可选信息，不能阻挡写作。
+On first launch, clearly offer Import Markdown and New Draft, with one short explanation of local storage. Once drafts exist, the list should make titles, update times, and relevant status easy to scan. Project association is optional and must never block writing.
 
-选中稿件后，让标题与内容成为视觉中心。「正文 / 预览」易发现，保存状态安静且明确。当前主要动作是「准备发布」；历史、导出、归档等次要动作收在容易找到的位置。保存失败时保留输入，靠近编辑区给出重试，不能只出现一闪而过的提示。
+When a draft is selected, its title and content should dominate the workspace. Make the editor/preview switch easy to find, and keep save status quiet but explicit. Prepare to Publish is the primary action. History, export, and archive should remain easy to discover as secondary actions. If saving fails, preserve the user's input and offer a nearby retry action; a temporary toast alone is insufficient.
 
-### 2. 发布前只做必要选择
+### 2. Make Only Necessary Decisions Before Publishing
 
-从已选稿件进入发布准备，选择掘金或 X，检查将要送出的内容。平台选择、账号状态、主要动作在同一视线区域，避免连续嵌套弹窗。
+From a selected draft, enter publishing preparation, choose Juejin or X, and review the actual content being sent. Keep platform selection, account status, and the primary action visually connected. Avoid successive nested dialogs.
 
-掘金：明确「复制并打开掘金」。有图片时才出现图片准备状态；有排版差异时展示一条可展开的说明。平台发布后可粘贴作品链接并保存记录。准备图片失败要指出是哪张图片，并允许处理后继续；不能显示虚假成功。
+For Juejin, clearly identify the action as Copy and Open Juejin. Show image-preparation controls when images are present. Show a compact, expandable explanation when relevant formatting differences exist. After publishing on the platform, the user can paste the publication URL and save its record. Image-preparation failures must identify the affected image and provide a way to proceed after resolving the issue. Never show a false success state.
 
-X：展示最终短帖、账号和字数限制。未配置、未连接、等待授权、已连接、发布中、成功、失败、发送结果待核实都要有明确状态。先给普通用户看「连接 X」或「配置后连接」这样的下一步，Client ID 等配置放在首次连接详情中。发送结果不确定时引导核实，不能提供诱导重复发送的主按钮。
+For X, show the final short post, destination account, and length limit. Design states for unconfigured, disconnected, awaiting authorization, connected, publishing, success, failure, and an uncertain delivery result. Present an actionable next step such as Connect X or Configure to Connect. Keep Client ID and similar setup details inside first-time connection details. When delivery is uncertain, guide the user to verify the result rather than encouraging a duplicate send.
 
-最终对外发布应保留一次明确的内容与账号确认。不要为减少点击次数删除必要确认；普通保存和阅读无需确认。
+Retain one explicit review and confirmation of content and account before final external publication. Preserve necessary confirmation even when minimizing clicks. Ordinary saving and reading require no confirmation dialogs.
 
-### 3. 阅读舒适，笔记随手可写
+### 3. Read Comfortably and Capture Notes Easily
 
-默认采用文章列表与阅读区域。来源筛选、搜索、未读筛选靠近列表；更新订阅是一个清楚的动作，添加地址无需向导。
+Use an article list alongside the reading area by default. Place source filters, search, and unread filtering near the list. Refreshing subscriptions should be one clear action; adding a feed URL should not require a wizard.
 
-把长文阅读作为主要场景：文章具有足够的宽度和连续滚动空间。请重点改进当前“正文放进约 290px 高的小区域，正文内和页面外分别滚动”的体验。优先给正文一个清晰的主滚动区域；长代码和宽表格可以各自横向滚动，整页不能横向溢出。
+Prioritize long-form reading with adequate width and continuous scrolling space. Specifically improve the current experience in which article content sits in an approximately 290px-tall box with nested article and page scrolling. Give the article one clear primary scrolling area. Long code blocks and wide tables may scroll horizontally within their own regions; the overall page must not overflow horizontally.
 
-「订阅正文」「订阅摘要」「来源未提供正文」「旧文字缓存」「内容截断」应简短、明确地区分。「打开原文」一直可找到。图片待加载、加载中、加载失败与重试要有可用状态。
+Clearly and concisely distinguish a supplied article body, a supplied summary, no supplied content, a legacy text-only cache, and truncated content. Keep Open Original available. Include usable states for images awaiting a load request, loading, load failure, and retry.
 
-笔记应触手可及，但不能压缩主要阅读宽度。可以在宽窗口使用可收起的笔记区，窄窗口用同页折叠或抽屉；切换文章、收起笔记和关闭窗口都不能丢失输入。笔记转稿要保留来源。为 30 篇与 200 篇文章设计列表层级，不要求本轮引入虚拟列表或新数据服务。
+Notes should be readily accessible without squeezing the main reading column. Consider a collapsible notes area on wide windows and an inline disclosure or drawer on narrow windows. Switching articles, collapsing notes, and closing the application must preserve entered text. Turning notes into a draft must retain source attribution. Design list hierarchy for both 30 and 200 articles; this does not require introducing virtualization or new data services in this stage.
 
-### 4. 分享后找得到记录
+### 4. Find Publication Records After Sharing
 
-用简洁列表展示作品、平台、确认时间和来源。人工记录与 API 回执有轻量区分。没有数据时说明当前只能打开平台查看；不放评论数、浏览量、趋势图的假占位。空状态应说明如何通过发布流程留下第一条记录。
+Use a clear list showing the publication, platform, confirmation time, and confirmation source. Distinguish manually recorded publications from API-confirmed receipts without excessive visual weight. When metrics are unavailable, explain that the user can open the platform to view them. Do not add fabricated comment counts, views, or trend charts. The empty state should explain how the publishing workflow creates the first record.
 
-### 5. 设置少而清楚
+### 5. Keep Settings Clear and Focused
 
-按「资料与备份」「平台连接」「应用更新」组织。把技术路径收进详情。备份成功说明文件已保存；恢复失败保留现有资料。升级页面说明当前版本、可用版本、更新状态和回退入口。错误附近提供具体下一步，不能将大量内部技术细节放进正常流程。
+Organize settings into Data and Backups, Platform Connections, and Application Updates. Put technical filesystem paths inside expandable details. Backup success should confirm that the file was saved. Restore failure must preserve existing data. The update area should communicate the installed version, available version, current status, and rollback access. Place a concrete next step near each error. Keep internal implementation details out of ordinary user flows.
 
-## 布局、交互与验收场景
+## Layout, Interaction, and Evaluation Scenarios
 
-请同时展示 1440×900、1180×800 和 800×620。大窗口不要把正文拉到难以阅读；小窗口应通过折叠侧栏或切换列表与详情保留操作空间，不能仅把所有文字缩小。
+Show layouts at 1440 by 900, 1180 by 800, and 800 by 620 pixels. Avoid excessively wide article lines on large windows. On smaller windows, preserve usable space through collapsible navigation or list/detail transitions rather than shrinking all typography.
 
-原型至少可以点击完成：选择稿件 → 正文 / 预览 → 发布准备 → 选择平台；选择订阅文章 → 阅读 → 写笔记；进入设置 → 查看备份与更新。未实现的网络动作应明确使用演示状态。
+The prototype must support these clickable journeys:
 
-交互需要说明：Tab 顺序、焦点样式、弹窗关闭后的焦点返回、可安全关闭时的 Esc 行为、加载中防止重复动作、保存失败恢复、长标题与空内容、单个订阅失败而其他订阅成功、恢复或升级失败。核心结果不能仅依赖悬浮提示。
+- Select a draft, switch between editing and preview, enter publishing preparation, and choose a platform.
+- Select a subscribed article, read it, and write a note.
+- Open Settings and inspect backup and update controls.
 
-## 请交付
+Clearly label simulated states for network actions that the prototype does not implement.
 
-1. 一套清晰的设计方向，用简短文字说明它如何帮助写作、阅读与发布。
-2. 可点击高保真原型，覆盖稿件、阅读、发布准备、发布记录和设置；提供关键空状态、错误和未连接状态。优先完善阅读和写作两页，再保持其他页面一致。
-3. 设计规范：颜色、字体、间距、圆角、按钮、列表、输入框、弹窗、提示、禁用与焦点状态；给出可直接映射为 CSS 变量的 token 名称与值。
-4. 每页的布局、滚动、窄窗口退化方式，以及主动作和次要动作的位置。
-5. 工程交接：组件清单、状态表、与旧版能力的对应关系、哪些是视觉调整、哪些需要额外交互实现。模拟数据与真实能力分开标注。
-6. 如支持文件导出，提供 `ui-spec.md`、`design-tokens.css` 和原型源码；样例数据只用公开或合成内容。工程师会将这些材料放入项目 `docs/design/`。
+Specify Tab order, focus appearance, focus restoration after closing a dialog, Escape behavior where closing is safe, duplicate-action prevention during loading, recovery from save failures, long titles, empty content, partial subscription-refresh failures, and restore or update failures. Essential information and actions must remain available without hover.
 
-最终请用“打开并选一篇稿件”“发布前核对”“长文阅读并记笔记”三个连续场景演示方案。不要停在审美建议或单张首页效果图。
+## Deliverables
+
+1. One coherent design direction, with a brief explanation of how it supports writing, reading, and publishing.
+2. An interactive high-fidelity prototype covering Drafts, Reading, Publishing Preparation, Publication Records, and Settings, including key empty, error, and disconnected states. Refine Reading and Drafts first, then make the remaining areas consistent.
+3. A design specification for colors, typography, spacing, radii, buttons, lists, inputs, dialogs, notices, disabled states, and focus states. Provide token names and values that map directly to CSS variables.
+4. Per-page specifications for layout, scrolling, narrow-window adaptation, and primary and secondary action placement.
+5. An engineering handoff with a component inventory, state tables, a mapping to existing capabilities, and a distinction between visual changes and additional interaction work. Separate demonstration data from real product capabilities.
+6. If file export is supported, provide `ui-spec.md`, `design-tokens.css`, and prototype source. Use only public or synthetic sample data. Engineers will place these materials under `docs/design/` in the repository.
+
+Conclude by demonstrating three complete scenarios: opening and selecting a draft, reviewing content before publication, and reading a long article while taking notes. Deliver the interactive experience and specifications, beyond aesthetic recommendations or a single landing-screen mockup.
