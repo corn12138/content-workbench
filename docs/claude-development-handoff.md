@@ -8,7 +8,7 @@
 
 先读取工作区与仓库中存在的 `AGENTS.md`，再完整读取本文件和 `claude-design-brief.md`。若环境没有实体 `AGENTS.md`，本文件已经包含本次交接所需约束，不要因此停止。用户新指令优先，其次是适用的仓库约束、本任务及当前代码，历史文档用于补充背景。
 
-接手时重新执行 `git status --short --branch`、`git log -5 --oneline` 和 `git diff --stat`。本次核对工作树干净，位于 `feat/rss-rich-reading`，HEAD 为 `c98f426596df039e18ed5517e9324c4a7a4189a2`，版本为 `0.5.0-dev.1`。该提交包含结构化 RSS 阅读与兼容升级。开始时确认此提交已在当前工作基线中；不要只从较老的远端 main 开工而丢掉本地成果。若接手后有新改动，保留它们，按实际状态调整，不要 reset、stash 或强制切换覆盖。
+接手时重新执行 `git status --short --branch`、`git log -5 --oneline` 和 `git diff --stat`。产品实现基线为 `c98f426596df039e18ed5517e9324c4a7a4189a2`，分支为 `feat/rss-rich-reading`，版本为 `0.5.0-dev.1`，包含结构化 RSS 阅读与兼容升级。设计接入核对时，已有文档提交至 `50fa587`，且用户提供的 `docs/design/` 为未跟踪资料，应原样保留。开始时确认此提交已在当前工作基线中；不要只从较老的远端 main 开工而丢掉本地成果。若接手后有新改动，保留它们，按实际状态调整，不要 reset、stash 或强制切换覆盖。
 
 公开仓库：`https://github.com/corn12138/content-workbench`。2026-11-02 的交付记录显示正式版基线为 0.4.0，本地 0.5.0-dev.1 未发布。本次只核对本地代码与报告，没有重新查询远端 Release / CI；任何远端状态必须实时确认后再报告。
 
@@ -20,7 +20,7 @@
 
 优先解决：长文阅读空间不足、主要与次要动作区分、页面视觉一致性、未配置与失败状态的下一步指引。基于 Tauri 2 + Rust + React + TypeScript 与现有普通 CSS 实现，延续无 AI、本地优先、免费开源的定位。
 
-Claude Design 的完整设计任务见 [claude-design-brief.md](claude-design-brief.md)。若已有设计交付，先读取 `docs/design/ui-spec.md`、token 和原型；若尚未交付，直接按该 brief 的默认方向开展布局、交互和状态实现，不把等待设计作为整个任务的阻塞。独立记录采用的视觉假设，后续用设计 token 对齐，不伪称获得了设计验收。
+Claude Design 已交付，在线原型和工程校正见 [设计接入核对](claude-design-implementation-review.md)。先读该核对，再读 `docs/design/ui-spec.md`、`design-tokens.css` 与 `prototype/README.md`，按实际设计落地；原始 brief 用于补充产品约束。设计中的模拟状态、额外接口要求和保存行为以核对文件的处理要求为准。若换机器缺少本地设计文件，先使用在线原型和核对记录推进独立工作，明确缺失材料，不伪称已还原全部设计。
 
 本轮不新增 AI、登录工作台账号、云同步、付费体系、定时发布、评论统计或任意网页全文采集。X 缺少开发者应用不能阻止本地 UI 与阅读开发。平台自动化属于后续独立任务，不用模拟接口代替真实验收。
 
@@ -84,7 +84,7 @@ Claude Design 的完整设计任务见 [claude-design-brief.md](claude-design-br
 
 ### D. 交付设计实现与可打开的独立预览
 
-完成 A–C 后，若设计材料已经可用，按 token 和页面规范完成对齐；缺少材料时交付按默认方向完成的可用版本，并注明视觉规范待最终对齐。输出关键页面截图与交互说明，更新相关文档，完成检查。
+完成 A–C 后，按已交付 token、页面规范及设计接入核对完成对齐，记录有理由保留的交互差异。输出关键页面截图与交互说明，更新相关文档，完成检查。
 
 在 `release/` 下使用新的独立预览目录，不覆盖 0.4.0 正式应用和已有阅读试用包。试用版使用独立的 `WORKBENCH_TAURI_DATA_DIR` 与 bundle identifier，避免落到默认开发资料或与正式应用抢占单实例。若制作供本机直接双击的预览包，确认独立资料配置随启动生效，且不要把携带本机路径的包当作公开发行包。
 
@@ -139,8 +139,8 @@ node scripts/smoke-tauri.mjs --packaged "src-tauri/target/debug/bundle/macos/内
 
 ## English kickoff prompt
 
-You are taking over development of Content Workbench in this repository. Read all applicable AGENTS.md instructions, then read docs/claude-development-handoff.md and docs/claude-design-brief.md in full. Verify the working tree and ensure your baseline includes commit c98f426596df039e18ed5517e9324c4a7a4189a2 and any newer local work. Preserve unrelated edits, existing data, Markdown rendering parity, backups, and Electron rollback.
+You are taking over development of Content Workbench in this repository. Read all applicable AGENTS.md instructions, then read docs/claude-development-handoff.md, docs/claude-design-implementation-review.md, and the design delivery under docs/design/ in full. Verify the working tree and ensure your baseline includes commit c98f426596df039e18ed5517e9324c4a7a4189a2 and any newer local work. Preserve unrelated edits, existing data, Markdown rendering parity, backups, and Electron rollback.
 
-Implement the scoped desktop UI and reading improvements described in sections A through D. Start with the reading experience, then complete writing, publishing preparation, publication records, and settings. Use the Claude Design deliverables when available; otherwise proceed with the documented default direction and record that assumption. Work through implementation and verification to a separate, directly openable Tauri preview. Do not stop after a plan or let missing X developer credentials block local work.
+Implement the scoped desktop UI and reading improvements described in sections A through D. Start with the reading experience, then complete writing, publishing preparation, publication records, and settings. Use the delivered Claude Design specifications and tokens, applying the production-contract corrections in the design implementation review. Work through implementation and verification to a separate, directly openable Tauri preview. Do not stop after a plan or let missing X developer credentials block local work.
 
 Keep external publishing claims accurate. Run the applicable tests and native checks, update the relevant documentation, and report actual results in Chinese. Preserve the old app and all production data. Finish with the preview path, screenshots where available, commit state, and any remaining verification limits. Do not publish social posts or release/update artifacts as part of this handoff task.
