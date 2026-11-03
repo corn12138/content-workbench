@@ -22,9 +22,20 @@ export function ReadingAddForm({
   cancel,
 }: ReadingAddFormProps) {
   return (
-    <form className="reading-add" onSubmit={add}>
+    <form
+      className="inline-panel reading-add"
+      onSubmit={add}
+      onKeyDown={(event) => {
+        if (event.key === "Escape" && !busy) {
+          event.stopPropagation();
+          cancel();
+        }
+      }}
+    >
       <div className="field">
-        <label htmlFor="reading-url">文章链接</label>
+        <label className="field-label" htmlFor="reading-url">
+          文章链接
+        </label>
         <input
           className="input"
           id="reading-url"
@@ -35,40 +46,35 @@ export function ReadingAddForm({
           required
           disabled={busy}
           autoFocus
+          aria-invalid={!!error}
         />
       </div>
       <div className="field">
-        <label htmlFor="reading-title">
-          标题 <span className="muted">选填</span>
+        <label className="field-label" htmlFor="reading-title">
+          标题 <span className="field-help">选填，方便以后找到它</span>
         </label>
         <input
           className="input"
           id="reading-title"
           value={title}
           onChange={(event) => setTitle(event.target.value)}
-          placeholder="方便以后找到它"
           maxLength={200}
           disabled={busy}
         />
       </div>
-      <div className="reading-add-actions">
-        <button className="button primary" type="submit" disabled={busy}>
-          {busy ? "正在保存…" : "保存链接"}
-        </button>
-        <button
-          className="button quiet"
-          type="button"
-          onClick={cancel}
-          disabled={busy}
-        >
-          取消
-        </button>
-      </div>
       {error && (
-        <p className="reading-error" role="alert">
+        <p className="field-error" role="alert">
           {error}
         </p>
       )}
+      <div className="inline-actions">
+        <button className="button primary small" type="submit" disabled={busy} aria-busy={busy}>
+          {busy ? "正在保存…" : "保存链接"}
+        </button>
+        <button className="button quiet small" type="button" onClick={cancel} disabled={busy}>
+          取消
+        </button>
+      </div>
     </form>
   );
 }

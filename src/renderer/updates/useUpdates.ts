@@ -29,6 +29,7 @@ export function useUpdates() {
   const [checking, setChecking] = useState(false);
   const [installing, setInstalling] = useState(false);
   const [message, setMessage] = useState("");
+  const [error, setError] = useState<"check" | "install" | null>(null);
   const [progress, setProgress] = useState("");
   const pending = useRef(false);
   const mounted = useRef(true);
@@ -43,7 +44,10 @@ export function useUpdates() {
     if (!api.checkUpdate || pending.current) return;
     pending.current = true;
     setChecking(true);
-    if (!quiet) setMessage("");
+    if (!quiet) {
+      setMessage("");
+      setError(null);
+    }
     write(checkedKey, String(Date.now()));
     try {
       const value = await api.checkUpdate();
@@ -51,7 +55,10 @@ export function useUpdates() {
       setAvailable(value);
       setMessage(value ? `发现新版本 ${value.version}` : "当前已是最新版本");
     } catch (error) {
-      if (mounted.current && !quiet) setMessage(errorMessage(error));
+      if (mounted.current && !quiet) {
+        setMessage(errorMessage(error));
+        setError("check");
+      }
     } finally {
       pending.current = false;
       if (mounted.current) setChecking(false);
@@ -76,10 +83,14 @@ export function useUpdates() {
     pending.current = true;
     setInstalling(true);
     setProgress("正在准备升级…");
+    setError(null);
     try {
       await api.installUpdate(available.version);
     } catch (error) {
-      if (mounted.current) setMessage(errorMessage(error));
+      if (mounted.current) {
+        setMessage(errorMessage(error));
+        setError("install");
+      }
     } finally {
       pending.current = false;
       if (mounted.current) setInstalling(false);
@@ -91,6 +102,7 @@ export function useUpdates() {
     checking,
     installing,
     message,
+    error,
     progress,
     check,
     install,

@@ -1,11 +1,26 @@
 import { useEffect, useState } from "react";
-import { Download, Upload, HardDrive, ArrowUpRight } from "lucide-react";
+import {
+  ChevronDown,
+  CircleAlert,
+  CircleCheckBig,
+  Download,
+  FolderOpen,
+  HardDrive,
+  Info,
+  Link2,
+  LoaderCircle,
+  Upload,
+} from "lucide-react";
 import type { AppInfo } from "../shared/contracts";
 import { XConnection } from "./publishing/XConnection";
 import "./publishing/publishing.css";
 import { api, errorMessage } from "./api";
 import { UpdateSection } from "./updates/UpdateSection";
 import type { Updates } from "./updates/useUpdates";
+
+type Outcome =
+  | { kind: "backup" | "restore"; state: "running" | "done" | "cancelled" }
+  | { kind: "backup" | "restore"; state: "failed"; message: string };
 
 export function SettingsView({
   onRestored,
@@ -19,7 +34,9 @@ export function SettingsView({
   installUpdate: () => void;
 }) {
   const [info, setInfo] = useState<AppInfo | null>(null);
-  const [busy, setBusy] = useState(false);
+  const [infoError, setInfoError] = useState("");
+  const [outcome, setOutcome] = useState<Outcome | null>(null);
+  const busy = outcome?.state === "running";
   useEffect(() => {
     let active = true;
     api
@@ -28,110 +45,178 @@ export function SettingsView({
         if (active) setInfo(value);
       })
       .catch((error) => {
-        if (active) notify(errorMessage(error));
+        if (active) setInfoError(errorMessage(error));
       });
     return () => {
       active = false;
     };
-  }, [notify]);
+  }, []);
   const run = async (kind: "backup" | "restore") => {
-    setBusy(true);
+    if (busy) return;
+    setOutcome({ kind, state: "running" });
     try {
-      const done =
-        kind === "backup" ? await api.backup() : await api.restoreBackup();
-      if (done) {
-        if (kind === "restore") await onRestored();
-        notify(
-          kind === "backup"
-            ? api.library
-              ? "全部资料、图片和订阅已备份"
-              : "全部文字资料和历史版本已备份"
-            : "资料已恢复",
-        );
-      }
+      // The native commands own file selection and the restore confirmation; false means the user cancelled.
+      const done = kind === "backup" ? await api.backup() : await api.restoreBackup();
+      if (done && kind === "restore") await onRestored();
+      setOutcome({ kind, state: done ? "done" : "cancelled" });
     } catch (error) {
-      notify(errorMessage(error));
-    } finally {
-      setBusy(false);
+      setOutcome({ kind, state: "failed", message: errorMessage(error) });
     }
   };
+  const full = !!api.library;
   return (
-    <section className="settings-page">
-      <header className="page-heading">
-        <div>
-          <p className="eyebrow">按你的习惯</p>
-          <h1>设置</h1>
-          <p className="muted">资料在本机，无需注册账号或配置 AI。</p>
-        </div>
-      </header>
-      <section className="settings-section">
-        <div className="settings-section-title">
-          <HardDrive size={19} />
-          <h2>本地资料</h2>
-        </div>
-        <p>草稿、历史版本、发布链接和阅读笔记会自动保存。</p>
-        <div className="settings-actions">
-          <button
-            className="button"
-            disabled={busy}
-            onClick={() => void run("backup")}
-          >
-            <Download size={16} />
-            备份资料
-          </button>
-          <button
-            className="button quiet"
-            disabled={busy}
-            onClick={() => void run("restore")}
-          >
-            <Upload size={16} />
-            恢复备份
-          </button>
-        </div>
-        <p className="muted small">
-          {api.library
-            ? "一个备份文件带走文字、历史版本、已保存的图片、订阅和阅读笔记。恢复前会自动保留完整副本。"
-            : "Electron 回退版备份文字资料，不含图片和订阅。"}
-        </p>
-        <details>
-          <summary>查看数据位置</summary>
-          <code className="data-path">{info?.dataPath || "正在读取…"}</code>
-        </details>
-      </section>
-      <section className="settings-section">
-        <h2>平台连接</h2>
-        <div className="setting-row">
+    <section className="page settings-page" aria-labelledby="settings-title">
+      <div className="page-inner settings-inner">
+        <header className="page-heading" data-tauri-drag-region>
           <div>
-            <strong>掘金</strong>
-            <p>复制并打开掘金，沿用系统浏览器的登录状态。</p>
+            <h1 id="settings-title">设置</h1>
+            <p>资料保存在这台电脑上，日常使用无需账号或模型配置。</p>
           </div>
-          <span className="badge">辅助发布</span>
-        </div>
-        {api.xAccount ? (
-          <XConnection />
-        ) : (
-          <p className="muted">X 授权与发布请使用 Tauri 版。</p>
-        )}
-      </section>
-      <section className="settings-section">
-        <h2>运行方式</h2>
-        <p>关闭窗口会退出应用，退出前先保存修改。当前没有后台采集任务。</p>
-        <p className="muted small">
-          {api.library
-            ? "订阅仅在添加或点击“更新订阅”时联网。关闭应用后不会继续更新。"
-            : "订阅功能请使用 Tauri 版。"}
+        </header>
+
+        <section className="settings-section" aria-labelledby="settings-data">
+          <h2 id="settings-data">
+            <HardDrive size={18} aria-hidden="true" />
+            资料与备份
+          </h2>
+          <p>
+            {full
+              ? "稿件、历史版本、图片、订阅和阅读笔记会自动保存。一个备份文件可以带走全部内容；恢复前会自动保留现有资料的完整副本。"
+              : "Electron 回退版备份文字资料、历史版本和发布记录，不含图片和订阅。"}
+          </p>
+          <div className="setting-row">
+            <div className="setting-label">
+              <strong>备份与恢复</strong>
+              <span>备份时选择保存位置；恢复时选择备份文件并在系统对话框中确认。</span>
+            </div>
+            <div className="settings-actions">
+              <button
+                type="button"
+                className="button"
+                disabled={busy}
+                aria-busy={busy && outcome?.kind === "backup"}
+                onClick={() => void run("backup")}
+              >
+                {busy && outcome?.kind === "backup" ? (
+                  <LoaderCircle size={15} className="spin" aria-hidden="true" />
+                ) : (
+                  <Download size={15} aria-hidden="true" />
+                )}
+                {busy && outcome?.kind === "backup" ? "正在备份…" : "备份资料"}
+              </button>
+              <button
+                type="button"
+                className="button"
+                disabled={busy}
+                aria-busy={busy && outcome?.kind === "restore"}
+                onClick={() => void run("restore")}
+              >
+                {busy && outcome?.kind === "restore" ? (
+                  <LoaderCircle size={15} className="spin" aria-hidden="true" />
+                ) : (
+                  <Upload size={15} aria-hidden="true" />
+                )}
+                {busy && outcome?.kind === "restore" ? "正在恢复…" : "恢复备份"}
+              </button>
+            </div>
+          </div>
+          {outcome?.state === "done" && (
+            <div className="notice success" role="status">
+              <CircleCheckBig size={16} aria-hidden="true" />
+              <div className="notice-body">
+                <p>
+                  {outcome.kind === "backup"
+                    ? full
+                      ? "备份文件已保存到你选择的位置，包含全部资料、图片和订阅。"
+                      : "备份文件已保存到你选择的位置，包含全部文字资料和历史版本。"
+                    : "资料已恢复。恢复前的资料副本已保留在资料目录中。"}
+                </p>
+              </div>
+            </div>
+          )}
+          {outcome?.state === "cancelled" && (
+            <p className="field-help" role="status">
+              {outcome.kind === "backup" ? "已取消，没有创建备份。" : "已取消，现有资料没有改动。"}
+            </p>
+          )}
+          {outcome?.state === "failed" && (
+            <div className="notice danger" role="alert">
+              <CircleAlert size={16} aria-hidden="true" />
+              <div className="notice-body">
+                <span className="notice-title">
+                  {outcome.kind === "backup" ? "备份未完成" : "恢复未完成，现有资料没有被替换"}
+                </span>
+                <p>{outcome.message}</p>
+                <div className="notice-actions">
+                  <button type="button" className="button" onClick={() => void run(outcome.kind)}>
+                    {outcome.kind === "backup" ? "重新备份" : "选择其他备份文件"}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+          <details className="disclosure">
+            <summary>
+              <FolderOpen size={14} aria-hidden="true" />
+              数据位置与技术信息
+              <ChevronDown size={14} className="chevron" aria-hidden="true" />
+            </summary>
+            <div className="disclosure-body">
+              {infoError ? (
+                <p className="field-error">{infoError}</p>
+              ) : (
+                <code className="data-path">{info?.dataPath || "正在读取…"}</code>
+              )}
+              <p>
+                {full
+                  ? "图片按内容哈希保存在数据库中；备份为带版本、大小和 SHA-256 清单的 .cwb 文件。"
+                  : "Electron 回退版使用独立资料目录，不能直接打开新版资料。"}
+              </p>
+            </div>
+          </details>
+        </section>
+
+        <section className="settings-section" aria-labelledby="settings-platforms">
+          <h2 id="settings-platforms">
+            <Link2 size={18} aria-hidden="true" />
+            平台连接
+          </h2>
+          <div className="setting-row">
+            <div className="setting-label">
+              <strong>
+                掘金 <span className="badge">辅助发布</span>
+              </strong>
+              <span>复制正文并在系统浏览器打开掘金，沿用浏览器的登录状态，无需连接。</span>
+            </div>
+            <span className="badge accent">
+              <CircleCheckBig size={12} aria-hidden="true" />
+              可用
+            </span>
+          </div>
+          <div className="setting-label">
+            <strong>
+              X <span className="badge warning">实验性</span>
+            </strong>
+            <span>真实账号尚未完成验收。发布前仍会让你确认内容和账号。</span>
+          </div>
+          {api.xAccount ? (
+            <XConnection />
+          ) : (
+            <p className="field-help">X 授权与发布请使用 Tauri 版。</p>
+          )}
+        </section>
+
+        <UpdateSection updates={updates} install={installUpdate} notify={notify} version={info?.version} />
+
+        <p className="foot-note">
+          <Info size={13} aria-hidden="true" />
+          <span>
+            关闭窗口会退出应用，退出前先保存修改。没有后台任务：
+            {full ? "订阅只在你添加或点击“更新订阅”时联网。" : "订阅功能请使用 Tauri 版。"}
+            {info?.version ? ` · 内容工作台 ${info.version} · 无 AI` : ""}
+          </span>
         </p>
-      </section>
-      <UpdateSection
-        updates={updates}
-        install={installUpdate}
-        notify={notify}
-      />
-      <footer className="settings-footer">
-        内容工作台 {info?.version || "0.1.0"} · 本地基础版{" "}
-        <ArrowUpRight size={13} />
-        <span>无 AI</span>
-      </footer>
+      </div>
     </section>
   );
 }

@@ -1,0 +1,140 @@
+/*
+ * 内容工作台 design tokens (「安静纸面」). Source: docs/design/design-tokens.css.
+ * Shell only: article typography inside `.markdown` keeps markdown.css / article-theme.css.
+ */
+:root {
+  /* ---------- Surfaces (warm off-white, back to front) ---------- */
+  --cw-surface-sidebar: #F1EFE9;   /* navigation column, subtly darker */
+  --cw-surface-list: #F7F5F0;      /* list panes (drafts, articles) */
+  --cw-surface-canvas: #FBFAF7;    /* main content background */
+  --cw-surface-raised: #FFFFFF;    /* editor paper, inputs, dialogs, menus */
+  --cw-surface-sunken: #F3F1EB;    /* code-free wells: details, image placeholders */
+  --cw-surface-hover: #EEEBE4;     /* hover on list rows / quiet buttons */
+  --cw-surface-selected: #E5ECE6;  /* selected list row, active nav item */
+  --cw-surface-scrim: rgba(36, 35, 32, 0.32);
+
+  /* ---------- Borders ---------- */
+  --cw-border-subtle: #E8E4DB;     /* pane dividers, row separators */
+  --cw-border: #D8D3C8;            /* inputs, secondary buttons */
+  --cw-border-strong: #8F8A7E;     /* hovered inputs; 3.4:1 on white (non-text UI ≥3:1) */
+
+  /* ---------- Text ---------- */
+  --cw-text: #2A2926;              /* 13.9:1 primary text */
+  --cw-text-secondary: #57544D;    /* 7.2:1 descriptions, meta */
+  --cw-text-tertiary: #67635B;     /* ≥4.8:1 on every surface incl. selected; timestamps, hints */
+  --cw-text-placeholder: #8A867C;  /* placeholder only (not information) */
+  --cw-text-inverse: #FFFFFF;
+
+  /* ---------- Accent (restrained, low-saturation green) ---------- */
+  --cw-accent: #3D6B54;            /* primary button fill; 6.1:1 with white text */
+  --cw-accent-hover: #335C48;
+  --cw-accent-pressed: #2A4D3C;
+  --cw-accent-text: #2F5A45;       /* accent-coloured text/links, 7.5:1 */
+  --cw-accent-soft: #E5ECE6;       /* selection tint */
+  --cw-accent-softer: #EFF4F0;
+
+  /* ---------- Status (always paired with icon + words, never colour alone) ---------- */
+  --cw-success-text: #2F5A45;  --cw-success-bg: #E8F0EA;  --cw-success-border: #C6D8CB;
+  --cw-warning-text: #7A4E0E;  --cw-warning-bg: #FBF1DE;  --cw-warning-border: #EBD6AE;
+  --cw-danger-text: #9B3426;   --cw-danger-bg: #FBECE8;   --cw-danger-border: #EDC7BE;
+  --cw-info-text: #2F5578;     --cw-info-bg: #EAF0F6;     --cw-info-border: #CBD8E6;
+  --cw-unread-dot: #3D6B54;
+
+  /* ---------- Focus ---------- */
+  --cw-focus-ring: #3D6B54;        /* 5.9:1 vs canvas */
+  --cw-focus-width: 2px;
+  --cw-focus-offset: 2px;
+  --cw-focus-halo: 0 0 0 4px rgba(61, 107, 84, 0.18);
+
+  /* ---------- Typography (local system fonts only) ---------- */
+  --cw-font-ui: -apple-system, BlinkMacSystemFont, "PingFang SC", "Hiragino Sans GB", "Helvetica Neue", sans-serif;
+  --cw-font-editor: "SF Mono", Menlo, Monaco, "PingFang SC", monospace; /* Markdown source: keeps indentation aligned; CJK falls back to PingFang */
+  --cw-font-mono: "SF Mono", Menlo, Monaco, Consolas, monospace;       /* paths, IDs, counters */
+  --cw-font-numeric: tabular-nums;                                     /* font-variant-numeric for times & counts */
+
+  --cw-text-xs: 12px;   /* minimum size: captions, badges, timestamps */
+  --cw-text-sm: 13px;   /* list meta, secondary controls */
+  --cw-text-md: 14px;   /* default UI text, buttons, list titles */
+  --cw-text-lg: 16px;   /* section titles, dialog body emphasis */
+  --cw-text-xl: 20px;   /* page titles */
+  --cw-text-2xl: 28px;  /* draft title input, reader title */
+
+  --cw-leading-tight: 1.3;
+  --cw-leading-ui: 1.5;
+  --cw-leading-relaxed: 1.7;   /* explanations, notices */
+  --cw-leading-editor: 1.85;   /* Markdown source editor */
+
+  --cw-weight-regular: 400;
+  --cw-weight-medium: 500;
+  --cw-weight-semibold: 600;
+
+  /* ---------- Spacing (4px base) ---------- */
+  --cw-space-0: 0;
+  --cw-space-1: 4px;
+  --cw-space-2: 8px;
+  --cw-space-3: 12px;
+  --cw-space-4: 16px;
+  --cw-space-5: 20px;
+  --cw-space-6: 24px;
+  --cw-space-8: 32px;
+  --cw-space-10: 40px;
+  --cw-space-12: 48px;
+  --cw-space-16: 64px;
+
+  /* ---------- Radii ---------- */
+  --cw-radius-xs: 3px;   /* badges, kbd */
+  --cw-radius-sm: 5px;   /* inputs, buttons */
+  --cw-radius-md: 7px;   /* list rows, menus, notices */
+  --cw-radius-lg: 10px;  /* panels, image wells */
+  --cw-radius-xl: 14px;  /* dialogs */
+  --cw-radius-full: 999px;
+
+  /* ---------- Elevation ---------- */
+  --cw-shadow-menu: 0 1px 2px rgba(42, 41, 38, 0.06), 0 8px 24px rgba(42, 41, 38, 0.12);
+  --cw-shadow-drawer: -1px 0 0 var(--cw-border-subtle), -12px 0 32px rgba(42, 41, 38, 0.08);
+  --cw-shadow-dialog: 0 2px 6px rgba(42, 41, 38, 0.08), 0 24px 64px rgba(42, 41, 38, 0.22);
+  --cw-shadow-toast: 0 4px 20px rgba(42, 41, 38, 0.14);
+
+  /* ---------- Controls ---------- */
+  --cw-control-h: 32px;       /* default button / input height */
+  --cw-control-h-sm: 28px;    /* toolbar icon buttons, segmented items */
+  --cw-control-h-lg: 36px;    /* primary action in rails and dialogs */
+  --cw-control-px: 12px;
+  --cw-icon-sm: 14px;
+  --cw-icon: 16px;
+  --cw-icon-lg: 20px;
+  --cw-icon-stroke: 1.75;     /* Lucide strokeWidth */
+
+  /* ---------- Layout ---------- */
+  --cw-titlebar-h: 52px;          /* traffic-light / drag region */
+  --cw-sidebar-w: 200px;          /* ≥1280 */
+  --cw-sidebar-w-standard: 184px; /* 960–1279 */
+  --cw-sidebar-w-rail: 64px;      /* <960: icon + label rail */
+  --cw-list-w: 300px;             /* drafts / articles list, ≥1280: 320 for articles */
+  --cw-list-w-wide: 320px;
+  --cw-notes-w: 320px;
+  --cw-rail-w: 340px;             /* publishing action rail */
+  --cw-measure-reading: 720px;    /* reader column max width (≈40 CJK chars at 16px) */
+  --cw-measure-editor: 760px;     /* editor + preview column */
+  --cw-content-pad-x: 40px;       /* 28px in standard, 20px in compact */
+  --cw-drawer-h: 260px;           /* notes bottom drawer in compact */
+
+  /* ---------- Motion ---------- */
+  --cw-duration-fast: 120ms;   /* hover, press, focus */
+  --cw-duration-base: 180ms;   /* panels, drawers, toasts */
+  --cw-ease: cubic-bezier(0.2, 0, 0, 1);
+
+  /* ---------- Layers ---------- */
+  --cw-z-sticky: 2;
+  --cw-z-menu: 20;
+  --cw-z-drawer: 30;
+  --cw-z-dialog: 40;
+  --cw-z-toast: 50;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --cw-duration-fast: 0.01ms;
+    --cw-duration-base: 0.01ms;
+  }
+}

@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { X } from "lucide-react";
+import { LayoutContext, useShellLayout } from "./layout";
 import type { Draft, Snapshot } from "../shared/contracts";
 import { api, errorMessage } from "./api";
 import { DraftEditor } from "./DraftEditor";
 import { DraftsView } from "./DraftsView";
-import { PublishDialog } from "./PublishDialog";
-import { FeedbackView } from "./FeedbackView";
+import { PublishWorkspace } from "./PublishWorkspace";
+import { RecordsView } from "./RecordsView";
 import { SettingsView } from "./SettingsView";
 import { ReadingView } from "./ReadingView";
 import { Sidebar, type View } from "./Sidebar";
@@ -27,6 +28,12 @@ export function App() {
   const [showArchived, setShowArchived] = useState(false);
   const [notice, setNotice] = useState("");
   const [publishing, setPublishing] = useState<Draft | null>(null);
+  const [publishBusy, setPublishBusy] = useState(false);
+  const [listCollapsed, setListCollapsed] = useState(false);
+  const [draftPane, setDraftPane] = useState<"list" | "detail">("detail");
+  const shell = useRef<HTMLDivElement>(null);
+  const publishButton = useRef<HTMLButtonElement>(null);
+  const layout = useShellLayout(shell);
   const [busy, setBusy] = useState(false);
   const [closing, setClosing] = useState(false);
   const closeSequence = useRef(0);
@@ -108,16 +115,24 @@ export function App() {
     if (next === view) return;
     void action(async () => {
       resetEditor();
+      setPublishing(null);
       setView(next);
     });
+  };
+  const closePublishing = () => {
+    setPublishing(null);
+    // The editor remounts behind the workspace; return focus to the action that opened it.
+    requestAnimationFrame(() => publishButton.current?.focus());
   };
   const chooseDraft = async (draft: Draft) => {
     await refresh();
     resetEditor();
+    setPublishing(null);
     setView("drafts");
     setShowArchived(draft.archived);
     setQuery("");
     setSelected(draft.id);
+    setDraftPane("detail");
   };
   const createDraft = () =>
     void action(async () => {
@@ -138,10 +153,14 @@ export function App() {
       );
     });
   const selectDraft = (draft: Draft) => {
-    if (selected === draft.id) return;
+    if (selected === draft.id) {
+      setDraftPane("detail");
+      return;
+    }
     void action(async () => {
       resetEditor();
       setSelected(draft.id);
+      setDraftPane("detail");
     });
   };
   const filterDrafts = (archived: boolean) => {
@@ -169,122 +188,143 @@ export function App() {
     });
   const active = data.drafts.find((item) => item.id === selected);
 
+  const compact = layout === "compact";
+  const unread = data.readings.filter((item) => !item.read).length;
+
   return (
-    <div className="app-shell" inert={closing}>
-      <Sidebar
-        view={view}
-        draftCount={data.drafts.filter((draft) => !draft.archived).length}
-        disabled={busy || loading || !!loadError}
-        onChange={changeView}
-      />
-      <main className="workspace" aria-busy={loading || busy} inert={busy}>
-        <div className="window-dragbar" data-tauri-drag-region />
-        {updates.available && view !== "settings" && (
-          <div className="update-banner" role="status">
-            新版本 {updates.available.version} 已就绪{" "}
-            <button
-              className="button quiet"
-              onClick={() => changeView("settings")}
-            >
-              查看更新
-            </button>
-          </div>
-        )}
-        {loading ? (
-          <div className="empty-state">
-            <p>正在打开你的工作台…</p>
-          </div>
-        ) : loadError ? (
-          <div className="empty-state" role="alert">
-            <h2>暂时无法读取资料</h2>
-            <p>{loadError}</p>
-            <button className="button" onClick={() => void load()}>
-              重试
-            </button>
-          </div>
-        ) : view === "drafts" ? (
-          <DraftsView
-            drafts={data.drafts}
-            active={active}
-            query={query}
-            showArchived={showArchived}
-            busy={busy}
-            onQuery={setQuery}
-            onFilter={filterDrafts}
-            onSelect={selectDraft}
-            onCreate={createDraft}
-            onImport={importDraft}
-            onUnarchive={(draft) =>
-              void action(async () => {
-                await api.archiveDraft(draft.id, false);
-                await chooseDraft({ ...draft, archived: false });
-              })
-            }
-          >
-            {active && !active.archived && (
-              <DraftEditor
-                key={active.id + ":" + editorKey}
-                draft={active}
-                onSaved={onSaved}
-                onPublish={setPublishing}
-                registerFlush={registerFlush}
-                notify={notify}
-                onRestored={(draft) => {
-                  onSaved(draft);
-                  resetEditor();
-                }}
-                onArchive={archiveDraft}
-              />
-            )}
-          </DraftsView>
-        ) : view === "feedback" ? (
-          <FeedbackView publications={data.publications} notify={notify} />
-        ) : view === "reading" ? (
-          <ReadingView
-            items={data.readings}
-            onRefresh={refresh}
-            onDraft={chooseDraft}
-            notify={notify}
-            registerFlush={registerFlush}
-          />
-        ) : (
-          <SettingsView
-            updates={updates}
-            installUpdate={() => void action(updates.install)}
-            onRestored={async () => {
-              resetEditor();
-              setSelected(null);
-              await refresh();
-            }}
-            notify={notify}
-          />
-        )}
-      </main>
-      <UpdateProgress updates={updates} />
-      {notice && (
-        <div className="toast" role="status">
-          <span>{notice}</span>
-          <button
-            className="icon-button"
-            aria-label="关闭提示"
-            onClick={() => setNotice("")}
-          >
-            <X size={15} />
-          </button>
-        </div>
-      )}
-      {publishing && (
-        <PublishDialog
-          draft={publishing}
-          onClose={() => setPublishing(null)}
-          onRecorded={refresh}
-          onPrepared={(draft) => {
-            onSaved(draft);
-            resetEditor();
-          }}
-          notify={notify}
+    <LayoutContext.Provider value={layout}>
+      <div className="app-shell" ref={shell} data-layout={layout} inert={closing}>
+        <Sidebar
+          view={view}
+          draftCount={data.drafts.filter((draft) => !draft.archived).length}
+          unreadCount={unread}
+          disabled={busy || publishBusy || loading || !!loadError}
+          onChange={changeView}
         />
-      )}
-    </div>
+        <main className="workspace" aria-busy={loading || busy} inert={busy}>
+          {updates.available && view !== "settings" && (
+            <div className="update-banner" role="status">
+              新版本 {updates.available.version} 已就绪
+              <button
+                type="button"
+                className="button quiet small"
+                disabled={publishBusy}
+                onClick={() => changeView("settings")}
+              >
+                查看更新
+              </button>
+            </div>
+          )}
+          {loading ? (
+            <div className="empty-state">
+              <p>正在打开你的工作台…</p>
+            </div>
+          ) : loadError ? (
+            <div className="empty-state" role="alert">
+              <h2>暂时无法读取资料</h2>
+              <p>{loadError}</p>
+              <button type="button" className="button" onClick={() => void load()}>
+                重试
+              </button>
+            </div>
+          ) : view === "drafts" && publishing ? (
+            <PublishWorkspace
+              draft={publishing}
+              onClose={closePublishing}
+              onRecorded={refresh}
+              onBusy={setPublishBusy}
+              onViewRecords={() => changeView("feedback")}
+              onPrepared={(draft) => {
+                onSaved(draft);
+                resetEditor();
+              }}
+              notify={notify}
+            />
+          ) : view === "drafts" ? (
+            <DraftsView
+              drafts={data.drafts}
+              publications={data.publications}
+              active={active}
+              query={query}
+              showArchived={showArchived}
+              busy={busy}
+              listHidden={compact ? draftPane === "detail" && !!active : listCollapsed}
+              detailHidden={compact && (draftPane === "list" || !active)}
+              onQuery={setQuery}
+              onFilter={filterDrafts}
+              onSelect={selectDraft}
+              onCreate={createDraft}
+              onImport={importDraft}
+              onUnarchive={(draft) =>
+                void action(async () => {
+                  await api.archiveDraft(draft.id, false);
+                  await chooseDraft({ ...draft, archived: false });
+                })
+              }
+            >
+              {active && !active.archived && (
+                <DraftEditor
+                  key={active.id + ":" + editorKey}
+                  draft={active}
+                  onSaved={onSaved}
+                  onPublish={setPublishing}
+                  registerFlush={registerFlush}
+                  notify={notify}
+                  onRestored={(draft) => {
+                    onSaved(draft);
+                    resetEditor();
+                  }}
+                  onArchive={archiveDraft}
+                  compact={compact}
+                  listCollapsed={listCollapsed}
+                  onToggleList={() => setListCollapsed((value) => !value)}
+                  onBack={() => setDraftPane("list")}
+                  publishButton={publishButton}
+                />
+              )}
+            </DraftsView>
+          ) : view === "feedback" ? (
+            <RecordsView
+              publications={data.publications}
+              notify={notify}
+              onDrafts={() => changeView("drafts")}
+            />
+          ) : view === "reading" ? (
+            <ReadingView
+              items={data.readings}
+              onRefresh={refresh}
+              onDraft={chooseDraft}
+              notify={notify}
+              registerFlush={registerFlush}
+            />
+          ) : (
+            <SettingsView
+              updates={updates}
+              installUpdate={() => void action(updates.install)}
+              onRestored={async () => {
+                resetEditor();
+                setSelected(null);
+                await refresh();
+              }}
+              notify={notify}
+            />
+          )}
+        </main>
+        <UpdateProgress updates={updates} />
+        {notice && (
+          <div className="toast" role="status">
+            <span>{notice}</span>
+            <button
+              type="button"
+              className="icon-button"
+              aria-label="关闭提示"
+              onClick={() => setNotice("")}
+            >
+              <X size={15} />
+            </button>
+          </div>
+        )}
+      </div>
+    </LayoutContext.Provider>
   );
 }
