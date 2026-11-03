@@ -1,0 +1,11 @@
+<rss version="2.0" xmlns:content="http://purl.org/rss/1.0/modules/content/"><channel>
+<title>Native test feed</title><link>https://example.com</link><description>Fixture</description>
+<item><title>Subscription article</title><link>https://example.com/posts/rss-article</link>
+<description>Offline subscription content</description><content:encoded><![CDATA[
+<h2 id="sample">Reading heading</h2><p>Offline subscription content</p>
+<ol><li>First</li><li>Second</li></ol><pre><code class="language-rust">fn main() {
+    println!("hello");
+}</code></pre><table><thead><tr><th>Key</th><th>Value</th></tr></thead><tbody><tr><td>A</td><td>One</td></tr></tbody></table>
+<p><a href="../next">Next article</a> <a href="#sample">Back to heading</a></p>
+<p><img src="./image.png" alt="Feed image"></p>
+]]></content:encoded></item></channel></rss>

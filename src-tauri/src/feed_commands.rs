@@ -51,15 +51,24 @@ pub async fn refresh_feed(
 ) -> Result<Feed, String> {
     trusted(&window)?;
     let state = app.state::<AppState>();
-    let (previous, epoch) = {
+    let (previous, epoch, needs_content) = {
         let store = state.lock()?;
-        (store.feed(&id)?, state.library_epoch.load(Ordering::SeqCst))
+        (
+            store.feed(&id)?,
+            state.library_epoch.load(Ordering::SeqCst),
+            store.library()?.items.iter().any(|item| {
+                item.feed_id == id && item.content.is_none() && !item.summary.is_empty()
+            }),
+        )
     };
     if !previous.enabled {
         return Err("订阅已取消。".into());
     }
     tauri::async_runtime::spawn_blocking(move || {
-        let fetched = feed_fetch::fetch(&previous.url, Some(&previous));
+        let fetched = feed_fetch::fetch(
+            &previous.url,
+            if needs_content { None } else { Some(&previous) },
+        );
         let state = app.state::<AppState>();
         let mut store = state.lock()?;
         if state.library_epoch.load(Ordering::SeqCst) != epoch {

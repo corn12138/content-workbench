@@ -14,6 +14,7 @@ fn parsed(summary: &str) -> ParsedFeed {
             url: url.into(),
             title: "Source title".into(),
             summary: summary.into(),
+            content: None,
             published_at: None,
         }],
     }
@@ -98,4 +99,87 @@ fn stale_refresh_and_failed_restore_do_not_replace_newer_library() {
     assert!(store.restore_full_backup(&backup).is_err());
     assert_eq!(store.library().unwrap(), before);
     assert_eq!(store.snapshot().unwrap().readings.len(), 1);
+}
+
+#[test]
+fn rich_content_roundtrips_and_legacy_items_remain_readable() {
+    use super::feed_models::{ContentFormat, ContentKind, FeedContent};
+    let (dir, mut store) = fixture();
+    let mut body = parsed("plain search text");
+    let content = FeedContent {
+        format: ContentFormat::Html,
+        kind: ContentKind::Body,
+        value: "<pre>  code\n    more</pre>".into(),
+        truncated: false,
+    };
+    body.items[0].content = Some(content.clone());
+    store.add_feed("https://example.com/rss", body).unwrap();
+    let before = store.library().unwrap();
+    let backup = store.export_full_backup().unwrap();
+    store.restore_full_backup(&backup).unwrap();
+    assert_eq!(store.library().unwrap(), before);
+    drop(store);
+    let mut store = super::WorkbenchStore::open(dir.path().to_path_buf()).unwrap();
+    assert_eq!(store.library().unwrap().items[0].content, Some(content));
+    let mut files = super::archive::unpack(&backup).unwrap();
+    let mut library: serde_json::Value = serde_json::from_slice(&files["library.json"]).unwrap();
+    library["items"][0]
+        .as_object_mut()
+        .unwrap()
+        .remove("content");
+    files.insert("library.json".into(), serde_json::to_vec(&library).unwrap());
+    store
+        .restore_full_backup(&super::archive::pack(files.clone()).unwrap())
+        .unwrap();
+    assert!(store.library().unwrap().items[0].content.is_none());
+    let stable = store.library().unwrap();
+    library["items"][0]["content"] = serde_json::json!({"format":"html","kind":"body","value":"x".repeat(100_001),"truncated":false});
+    files.insert("library.json".into(), serde_json::to_vec(&library).unwrap());
+    assert!(store
+        .restore_full_backup(&super::archive::pack(files).unwrap())
+        .is_err());
+    assert_eq!(store.library().unwrap(), stable);
+}
+
+#[test]
+fn reading_upgrade_preserves_schema_three_recovery_once() {
+    let (dir, store) = fixture();
+    store
+        .connection
+        .execute_batch("PRAGMA user_version=3")
+        .unwrap();
+    drop(store);
+    let store = super::WorkbenchStore::open(dir.path().to_path_buf()).unwrap();
+    let recovery: Vec<_> = std::fs::read_dir(dir.path())
+        .unwrap()
+        .map(|p| p.unwrap().path())
+        .filter(|p| {
+            p.file_name()
+                .unwrap()
+                .to_string_lossy()
+                .starts_with("before-reading-upgrade-")
+        })
+        .collect();
+    assert_eq!(recovery.len(), 1);
+    let old = rusqlite::Connection::open(&recovery[0]).unwrap();
+    assert_eq!(
+        old.query_row("PRAGMA user_version", [], |r| r.get::<_, i64>(0))
+            .unwrap(),
+        3
+    );
+    drop(old);
+    drop(store);
+    let _store = super::WorkbenchStore::open(dir.path().to_path_buf()).unwrap();
+    assert_eq!(
+        std::fs::read_dir(dir.path())
+            .unwrap()
+            .filter(|p| p
+                .as_ref()
+                .unwrap()
+                .file_name()
+                .to_string_lossy()
+                .starts_with("before-reading-upgrade-"))
+            .count(),
+        1
+    );
 }

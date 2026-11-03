@@ -6,7 +6,7 @@ pub(super) fn upgrade(
     directory: &Path,
     original_version: i64,
 ) -> Result<(), String> {
-    if matches!(original_version, 2 | 3) {
+    if matches!(original_version, 2 | 3 | 4) {
         return Ok(());
     }
     if original_version == 1 {

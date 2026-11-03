@@ -373,7 +373,7 @@
   background: #f7f9f5;
   border-radius: 10px;
 }
-.reading-excerpt p {
+.reading-excerpt > p {
   font-size: 14px;
   line-height: 1.9;
   white-space: pre-wrap;
@@ -416,4 +416,12 @@
 }
 .reading-preview-text.expanded {
   max-height: none;
+}
+
+/* Rich articles retain their own block spacing; whitespace preservation is only for plain feed text. */
+.reading-preview-text:has(.markdown) {
+  white-space: normal;
+}
+.reading-excerpt .markdown {
+  padding: 0;
 }

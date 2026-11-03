@@ -76,6 +76,7 @@ export interface FeedItem {
   title: string;
   url: string;
   summary: string;
+  content?: { format: "html" | "text"; kind: "body" | "summary"; value: string; truncated: boolean };
   publishedAt: string | null;
 }
 export interface Library {

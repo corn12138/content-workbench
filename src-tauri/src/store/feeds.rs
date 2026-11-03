@@ -44,6 +44,10 @@ pub fn validate_library(library: &Library, readings: &[Reading]) -> Result<(), S
             || !item.key.bytes().all(|c| c.is_ascii_hexdigit())
             || item.title.chars().count() > 200
             || item.summary.chars().count() > 20_000
+            || item
+                .content
+                .as_ref()
+                .is_some_and(|c| c.value.chars().count() > 100_000)
             || validation::normalize_reading_url(&item.url).is_err()
             || item
                 .reading_id
@@ -203,6 +207,7 @@ impl WorkbenchStore {
                     title: entry.title,
                     url: entry.url,
                     summary: entry.summary,
+                    content: entry.content,
                     published_at: entry.published_at,
                 })?;
             }

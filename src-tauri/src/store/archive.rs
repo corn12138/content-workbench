@@ -75,7 +75,7 @@ pub fn pack(mut files: Files) -> Result<Vec<u8>, String> {
         .collect();
     let manifest = Manifest {
         format: "content-workbench".into(),
-        version: 2,
+        version: 3,
         entries,
     };
     files.insert(
@@ -126,7 +126,7 @@ pub fn unpack(bytes: &[u8]) -> Result<Files, String> {
         serde_json::from_slice(&files.remove("manifest.json").ok_or("备份缺少校验清单。")?)
             .map_err(|_| "备份清单无效。")?;
     if manifest.format != "content-workbench"
-        || manifest.version != 2
+        || !matches!(manifest.version, 2 | 3)
         || manifest.entries.len() != files.len()
     {
         return Err("备份版本或文件清单不匹配。".into());

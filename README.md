@@ -6,6 +6,8 @@ A local-first desktop workspace for developer writing, assisted publishing and r
 
 **当前版本为 0.4.0**，支持图片随稿保存、完整备份、RSS 阅读和增强 Markdown 预览；X 授权与短帖发布为实验性功能，真实账号连通尚待开发者应用配置后验收，见[配置与能力边界](docs/publishing-and-preview.md)。已验证平台为 macOS Apple Silicon；Windows、Linux 和 Intel Mac 尚未验收。
 
+开发分支正在验证 **0.5.0-dev.1 订阅排版预览版**：保留标题、代码、表格与链接，新增 schema 4 和升级前资料副本。尚未作为正式发行或自动更新推送，详见[试用与兼容说明](docs/rss-rich-reading.md)。
+
 ## 下载与开始
 
 从 [Releases](https://github.com/corn12138/content-workbench/releases) 下载 `content-workbench-0.4.0-macos-arm64.zip`，解压后将「内容工作台.app」放入应用程序目录并打开。

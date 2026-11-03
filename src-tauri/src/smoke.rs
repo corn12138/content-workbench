@@ -118,7 +118,10 @@ pub fn comparison_step(
             let mut store = app_state.lock()?;
             store.put_asset(&asset)?;
             let source = url::Url::parse("https://example.com/feed.xml").unwrap();
-            let parsed = crate::feed_parse::parse(br#"<rss version="2.0"><channel><title>Native test feed</title><link>https://example.com</link><description>Fixture</description><item><title>Subscription article</title><link>https://example.com/rss-article</link><description>Offline subscription content</description></item></channel></rss>"#, &source)?;
+            let parsed = crate::feed_parse::parse(
+                include_bytes!("../../tests/fixtures/reading-feed.xml"),
+                &source,
+            )?;
             store.add_feed(source.as_str(), parsed)?;
             Ok(json!(format!("assets/{}", asset.name)))
         }

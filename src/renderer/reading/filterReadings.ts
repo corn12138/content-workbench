@@ -6,7 +6,13 @@ export function readingIndex(items: FeedItem[]) {
   for (const item of items) {
     if (!item.readingId) continue;
     const previous = byReading.get(item.readingId);
-    if (!previous || item.summary.length > previous.summary.length)
+    if (
+      !previous ||
+      (!!item.content && !previous.content) ||
+      (!!item.content === !!previous.content &&
+        (item.content?.value.length ?? item.summary.length) >
+          (previous.content?.value.length ?? previous.summary.length))
+    )
       byReading.set(item.readingId, item);
   }
   return byReading;
@@ -18,13 +24,19 @@ export function filterReadings(
   source: string,
   query: string,
 ) {
-  const content = readingIndex(library.items);
   const sourceIds = new Set(
     library.items
       .filter((item) => item.feedId === source)
       .map((item) => item.readingId),
   );
   const needle = query.trim().toLocaleLowerCase();
+  const contentMatches = new Set(
+    needle
+      ? library.items
+          .filter((item) => item.summary.toLocaleLowerCase().includes(needle))
+          .map((item) => item.readingId)
+      : [],
+  );
   return items.filter((item) => {
     if (
       (filter === "unread" && item.read) ||
@@ -34,7 +46,8 @@ export function filterReadings(
     if (source && !sourceIds.has(item.id)) return false;
     return (
       !needle ||
-      [item.title, item.url, item.note, content.get(item.id)?.summary || ""]
+      contentMatches.has(item.id) ||
+      [item.title, item.url, item.note]
         .join("\n")
         .toLocaleLowerCase()
         .includes(needle)

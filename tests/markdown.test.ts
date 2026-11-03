@@ -102,3 +102,34 @@ test("blank input has an empty state and unsafe or relative URLs cannot navigate
   assert.doesNotMatch(html, /href="file:|href="\.\/|href="https:\/\/name/);
   assert.match(html, /href="https:\/\/example.com\//);
 });
+
+const renderFeed = (text: string) =>
+  renderToStaticMarkup(
+    createElement(MarkdownContent, {
+      text,
+      html: true,
+      baseURL: "https://example.com/posts/article/",
+    }),
+  );
+test("feed HTML preserves code whitespace and structure, resolves relative URLs, and stays inert", () => {
+  const html = renderFeed(
+    '<h2 id="intro">Title</h2><a href="#intro">Jump</a><a href="https://example.com/posts/article/#intro">Absolute jump</a><ol><li>One</li></ol><pre><code class="language-js">const x = 1;\n  console.log(x);</code></pre><table><tr><td>Cell</td></tr></table><a href="../next">Next</a><img src="/image.png" onerror="steal()"><script>steal()</script><iframe src="https://evil.invalid"></iframe><a href="javascript:steal()">Bad</a><img src="file:///etc/passwd">',
+  );
+  for (const tag of ["h2", "ol", "li", "pre", "code", "table", "td"])
+    assert.match(html, new RegExp(`<${tag}\\b`));
+  assert.match(html.replace(/<[^>]*>/g, ""), /\n  console.log/);
+  assert.match(html, /href="https:\/\/example.com\/posts\/next"/);
+  const target = html.match(/<h2 id="([^"]+)"/)![1];
+  assert.equal(html.split(`href="#${target}"`).length - 1, 2);
+  assert.doesNotMatch(
+    html,
+    /<script|<iframe|<img|onerror=|file:\/|javascript:|steal\(\)/,
+  );
+});
+test("deeply nested or oversized feed markup degrades to an original-link hint", () => {
+  assert.match(
+    renderFeed("<div>".repeat(100) + "nested" + "</div>".repeat(100)),
+    /打开原文/,
+  );
+  assert.match(renderFeed("x".repeat(400001)), /打开原文/);
+});

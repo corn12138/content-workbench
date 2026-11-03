@@ -13,6 +13,7 @@ pub mod media;
 pub mod models;
 mod prepared_images;
 mod publishing_schema;
+mod reading_schema;
 mod records;
 #[cfg(test)]
 mod tests;
@@ -44,7 +45,7 @@ impl WorkbenchStore {
         let version: i64 = connection
             .query_row("PRAGMA user_version", [], |r| r.get(0))
             .map_err(|e| e.to_string())?;
-        if !matches!(version, 0 | 1 | 2 | 3) {
+        if !matches!(version, 0 | 1 | 2 | 3 | 4) {
             return Err("资料来自更新版本的应用，请升级后打开。".into());
         }
         if version == 0 {
@@ -82,6 +83,7 @@ impl WorkbenchStore {
                 .map_err(|_| "本地图片或订阅资料结构不完整。".to_string())?;
         }
         publishing_schema::upgrade(&connection, &directory, version)?;
+        reading_schema::upgrade(&connection, &directory, version)?;
         connection
             .execute_batch(
                 "PRAGMA foreign_keys=ON; PRAGMA busy_timeout=5000; PRAGMA journal_mode=WAL;",

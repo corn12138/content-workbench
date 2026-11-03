@@ -1,6 +1,6 @@
-import { useState } from "react";
 import { ArrowUpRight, Check, FilePlus2, RefreshCw } from "lucide-react";
 import type { Reading, FeedItem } from "../../shared/contracts";
+import { FeedExcerpt } from "./FeedExcerpt";
 import { api } from "../api";
 import { sourceName } from "./sourceName";
 import type { ReadingSaveState } from "./useReadingEditor";
@@ -28,8 +28,6 @@ export function ReadingDetail({
   convert,
   notify,
 }: ReadingDetailProps) {
-  const [expandedId, setExpandedId] = useState<string | null>(null);
-  const expanded = expandedId === record.id;
   const saveLabel = {
     saved: "已保存到本机",
     pending: "等待保存…",
@@ -71,32 +69,7 @@ export function ReadingDetail({
           </button>
         </div>
       </div>
-      {feedItem && (
-        <section className="reading-excerpt" aria-label="订阅内容">
-          <div className="eyebrow">
-            订阅内容
-            {feedItem.publishedAt &&
-              ` · ${new Date(feedItem.publishedAt).toLocaleDateString()}`}
-          </div>
-          <div className={`reading-preview-text ${expanded ? "expanded" : ""}`}>
-            {feedItem.summary || "订阅未提供正文，请点击“打开原文”阅读。"}
-          </div>
-          {feedItem.summary.length > 600 && (
-            <button
-              className="button quiet"
-              onClick={() => setExpandedId(expanded ? null : record.id)}
-            >
-              {expanded ? "收起预览" : "展开订阅内容"}
-            </button>
-          )}
-          {feedItem.summary && (
-            <span className="muted">
-              显示订阅源提供的文字，最多 2
-              万字；不加载远程图片。完整内容以原文为准。
-            </span>
-          )}
-        </section>
-      )}
+      {feedItem && <FeedExcerpt key={record.id} item={feedItem} />}
       <div className="reading-note-heading">
         <label htmlFor="reading-note">我的笔记</label>
         <span

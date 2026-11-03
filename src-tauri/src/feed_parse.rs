@@ -1,3 +1,4 @@
+use crate::store::feed_models::{ContentFormat, ContentKind, FeedContent};
 use regex::Regex;
 use sha2::{Digest, Sha256};
 use std::{collections::HashSet, sync::LazyLock};
@@ -8,6 +9,7 @@ pub struct ParsedEntry {
     pub url: String,
     pub title: String,
     pub summary: String,
+    pub content: Option<FeedContent>,
     pub published_at: Option<String>,
 }
 pub struct ParsedFeed {
@@ -77,13 +79,44 @@ pub fn parse(bytes: &[u8], source: &Url) -> Result<ParsedFeed, String> {
         if !seen.insert(url.clone()) {
             continue;
         }
-        // Feeds often supply a short teaser alongside full content; prefer the supplied body for offline preview.
-        let summary = entry
+        // Keep feed HTML inert in storage; the renderer sanitizes it before constructing React nodes.
+        // Atom text must stay text, even when it contains angle brackets or Markdown punctuation.
+        let body = entry
             .content
-            .and_then(|content| content.body)
-            .filter(|body| !plain(body, 1).is_empty())
-            .or_else(|| entry.summary.map(|text| text.content))
-            .unwrap_or_default();
+            .and_then(|c| c.body.map(|body| (body, c.content_type.to_string())))
+            .filter(|(body, _)| !body.trim().is_empty());
+        let supplied = body
+            .map(|(value, mime)| (value, mime, ContentKind::Body))
+            .or_else(|| {
+                entry
+                    .summary
+                    .map(|t| (t.content, t.content_type.to_string(), ContentKind::Summary))
+            });
+        let (summary, content) = match supplied {
+            Some((value, mime, kind)) if !value.trim().is_empty() => {
+                let format = if mime.contains("html") {
+                    ContentFormat::Html
+                } else {
+                    ContentFormat::Text
+                };
+                let summary = if format == ContentFormat::Html {
+                    plain(&value, 20_000)
+                } else {
+                    value.chars().take(20_000).collect()
+                };
+                let truncated = value.chars().count() > 100_000;
+                (
+                    summary,
+                    Some(FeedContent {
+                        format,
+                        kind,
+                        truncated,
+                        value: value.chars().take(100_000).collect(),
+                    }),
+                )
+            }
+            _ => (String::new(), None),
+        };
         items.push(ParsedEntry {
             key: format!("{:x}", Sha256::digest(url.as_bytes())),
             title: entry
@@ -92,7 +125,8 @@ pub fn parse(bytes: &[u8], source: &Url) -> Result<ParsedFeed, String> {
                 .filter(|s| !s.is_empty())
                 .unwrap_or_else(|| "未命名文章".into()),
             url,
-            summary: plain(&summary, 20_000),
+            summary,
+            content,
             published_at: entry
                 .published
                 .or(entry.updated)

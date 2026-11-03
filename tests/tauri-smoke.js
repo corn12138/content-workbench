@@ -223,6 +223,21 @@
   await click("阅读");
   await wait(() => document.querySelector(".reading-workspace"), "reading workspace");
   await wait(() => document.querySelector(".reading-excerpt")?.textContent.includes("Offline subscription content"), "RSS cached content");
+  const reading = document.querySelector(".reading-excerpt .markdown");
+  assert(reading?.querySelector("h2") && reading.querySelector("ol") && reading.querySelector("table"), "Rich RSS structure missing");
+  assert(reading.querySelector("pre code")?.textContent.includes('\n    println!("hello");'), "RSS code whitespace changed");
+  assert([...reading.querySelectorAll("a")].some((a) => a.href === "https://example.com/next"), "RSS relative link was not resolved against article URL");
+  assert(reading.querySelector(".image-placeholder") && !reading.querySelector("img"), "RSS image loaded without opt-in");
+  await wait(() => button("展开订阅内容"), "short markup overflow expansion");
+  await click("展开订阅内容");
+  await wait(() => document.querySelector(".reading-preview-text.expanded"), "expanded RSS article");
+  reading.querySelector('a[href^="#"]').click();
+  assert(document.activeElement === reading.querySelector("h2"), "RSS heading anchor did not focus within article");
+  await step("resize");
+  await wait(() => window.innerWidth < 900, "narrow RSS window");
+  assert(document.documentElement.scrollWidth <= window.innerWidth, "RSS layout overflows narrow window");
+  await click("收起预览");
+  await wait(() => !document.querySelector(".reading-preview-text.expanded"), "RSS collapse");
   fill('[aria-label="搜索标题、内容和笔记"]', "Offline subscription");
   await wait(() => document.querySelectorAll(".reading-item").length === 1, "cached content search");
   fill('[aria-label="搜索标题、内容和笔记"]', "a-query-with-no-matches");
@@ -251,7 +266,7 @@
   snapshot = await api.snapshot();
   assert(snapshot.drafts.some((draft) => draft.body.includes("来源：https://example.com/engineering-notes")), "Converted note lost attribution");
   await step("full_backup_roundtrip");
-  await step("complete", { imagePreparationFailureVisible: true, updateSettingsOfflineGuard: true, juejinInlineAnchorAdaptation: true, mermaidDiagramRendered: true, mermaidErrorsVisible: true, remoteImagesOptIn: true, privateRemoteImageBlocked: true, markdownHistoryParity: true, markdownEqualWidthAppearance: true, juejinMeasuredTypography: true, mermaidPixelParity: true, markdownFixtureRendered: true, markdownAnchorsScoped: true, markdownEditorPublishParity: true, markdownNarrowLayout: true, xSetupRendered: true, unauthenticatedPublishBlocked: true, cachedContentSearch: true, storedImageRendered: true, rssContentRendered: true, privateFeedBlocked: true, fullBackupRoundtrip: true, rendererIsolation: true, autosaveOnNavigation: true, markdownSanitized: true, nativeClipboard: clipboardAvailable, nativeClipboardSkipped: !clipboardAvailable, manualPublicationRecorded: true, readingNoteSaved: true, readingToDraft: true, narrowViewport: true });
+  await step("complete", { imagePreparationFailureVisible: true, updateSettingsOfflineGuard: true, juejinInlineAnchorAdaptation: true, mermaidDiagramRendered: true, mermaidErrorsVisible: true, remoteImagesOptIn: true, privateRemoteImageBlocked: true, markdownHistoryParity: true, markdownEqualWidthAppearance: true, juejinMeasuredTypography: true, mermaidPixelParity: true, markdownFixtureRendered: true, markdownAnchorsScoped: true, markdownEditorPublishParity: true, markdownNarrowLayout: true, xSetupRendered: true, unauthenticatedPublishBlocked: true, cachedContentSearch: true, storedImageRendered: true, rssContentRendered: true, rssRichLayout: true, rssCodeWhitespace: true, rssRelativeLinks: true, rssAnchors: true, rssImagesOptIn: true, rssExpandCollapse: true, rssNarrowLayout: true, privateFeedBlocked: true, fullBackupRoundtrip: true, rendererIsolation: true, autosaveOnNavigation: true, markdownSanitized: true, nativeClipboard: clipboardAvailable, nativeClipboardSkipped: !clipboardAvailable, manualPublicationRecorded: true, readingNoteSaved: true, readingToDraft: true, narrowViewport: true });
   // Closing immediately exercises the pending-save barrier instead of waiting for debounce.
   fill('[aria-label="文章标题"]', "Tauri 测试样本 · 关闭时保存");
   await step("close");
