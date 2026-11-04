@@ -264,6 +264,98 @@
 .reader-end:empty {
   display: none;
 }
+.reader-next {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  width: 100%;
+}
+.reader-next .button {
+  max-width: 100%;
+  min-width: 0;
+}
+.reader-next-label {
+  flex-shrink: 0;
+  color: var(--cw-text-secondary);
+}
+.reader-next-title {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  max-width: 28em;
+}
+/* Note composition: choose saved notes in list order, then build one draft. */
+.compose-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-top: 1px solid var(--cw-border-subtle);
+  background: var(--cw-surface-list);
+  font-size: var(--cw-text-sm);
+}
+.compose-bar .spacer {
+  flex: 1;
+}
+.reading-item-grid:has(.compose-check) {
+  grid-template-columns: 16px 10px minmax(0, 1fr);
+}
+.reading-item .compose-check {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  margin-top: 2px;
+  border: 1px solid var(--cw-border-strong);
+  border-radius: var(--cw-radius-xs);
+  background: var(--cw-surface-raised);
+  color: var(--cw-accent);
+}
+.list-status .link-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  margin-left: 8px;
+}
+.opml-preview {
+  display: grid;
+  gap: 8px;
+}
+.opml-entries {
+  display: grid;
+  gap: 2px;
+  max-height: 240px;
+  overflow-y: auto;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--cw-text-xs);
+}
+.opml-entries li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  padding: 4px 0;
+  border-top: 1px solid var(--cw-border-subtle);
+}
+.opml-entries li span:first-child {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.opml-entries [data-status="new"],
+.opml-entries [data-status="resubscribe"] {
+  color: var(--cw-success-text);
+}
+.opml-entries [data-status="invalid"],
+.opml-entries [data-status="blocked"],
+.opml-entries [data-status="overLimit"] {
+  color: var(--cw-warning-text);
+}
 
 /* ---------- Notes ---------- */
 .notes-panel {

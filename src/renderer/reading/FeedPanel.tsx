@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
-import { ChevronDown, Plus, RefreshCw, TriangleAlert, X } from "lucide-react";
-import type { Feed, Library } from "../../shared/contracts";
+import { ChevronDown, Download, Plus, RefreshCw, TriangleAlert, Upload, X } from "lucide-react";
+import type { Feed, Library, OpmlEntry } from "../../shared/contracts";
+import { opmlCounts, opmlLabel } from "./opml";
 import { api, errorMessage } from "../api";
 
 interface Props {
@@ -9,10 +10,17 @@ interface Props {
   onRefresh: () => Promise<void>;
   adding: boolean;
   setAdding: (adding: boolean) => void;
+  importing: boolean;
+  setImporting: (importing: boolean) => void;
 }
 
 interface FailedFeed {
   id: string;
+  title: string;
+  error: string;
+}
+interface FailedImport {
+  url: string;
   title: string;
   error: string;
 }
@@ -24,13 +32,15 @@ const timeFormat = new Intl.DateTimeFormat("zh-CN", {
   minute: "2-digit",
 });
 
-export function FeedPanel({ library, onLibrary, onRefresh, adding, setAdding }: Props) {
+export function FeedPanel({ library, onLibrary, onRefresh, adding, setAdding, importing, setImporting }: Props) {
   const feeds = library.feeds.filter((feed) => feed.enabled);
   const [url, setUrl] = useState("");
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
   const [addError, setAddError] = useState("");
   const [failed, setFailed] = useState<FailedFeed[]>([]);
+  const [preview, setPreview] = useState<{ filename: string; entries: OpmlEntry[] } | null>(null);
+  const [importFailed, setImportFailed] = useState<FailedImport[]>([]);
   const active = useRef(false);
   const locked = useRef(false);
   const generation = useRef(0);
@@ -122,6 +132,58 @@ export function FeedPanel({ library, onLibrary, onRefresh, adding, setAdding }: 
       return "";
     });
 
+  // Choosing the file and checking it happen before anything is added; the user confirms the list.
+  useEffect(() => {
+    if (!importing || !api.opmlPreview) return;
+    setImporting(false);
+    void run(async () => {
+      const value = await api.opmlPreview!();
+      if (!value) return "已取消，没有导入订阅。";
+      if (active.current) {
+        setPreview(value);
+        setImportFailed([]);
+      }
+      return "";
+    });
+  }, [importing]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  /** Adds subscriptions with at most three requests at a time; each failure is reported per source. */
+  const addAll = (targets: { url: string; title: string }[]) =>
+    void run(async () => {
+      const queue = [...targets];
+      const failures: FailedImport[] = [];
+      let added = 0;
+      await Promise.all(
+        Array.from({ length: Math.min(3, queue.length) }, async () => {
+          while (active.current) {
+            const target = queue.shift();
+            if (!target) return;
+            try {
+              await api.addFeed!(target.url);
+              added++;
+            } catch (error) {
+              failures.push({ ...target, error: errorMessage(error) });
+            }
+          }
+        }),
+      );
+      if (active.current) {
+        setPreview(null);
+        setImportFailed(failures);
+      }
+      return failures.length
+        ? `已添加 ${added} 个订阅，${failures.length} 个未能添加。已有文章和笔记不受影响。`
+        : `已添加 ${added} 个订阅，文章已放入阅读列表。`;
+    });
+
+  const exportList = () =>
+    void run(async () => {
+      const result = await api.exportOpml!();
+      return result ? `已导出 ${result.count} 个订阅到 ${result.filename}。` : "已取消导出。";
+    });
+
+  const counts = preview ? opmlCounts(preview.entries) : null;
+
   const lastChecked = feeds
     .map((feed) => (feed.checkedAt ? Date.parse(feed.checkedAt) : NaN))
     .filter(Number.isFinite)
@@ -177,6 +239,60 @@ export function FeedPanel({ library, onLibrary, onRefresh, adding, setAdding }: 
           </div>
         </form>
       )}
+      {preview && counts && (
+        <div className="inline-panel opml-preview" role="region" aria-label="导入订阅列表">
+          <strong>导入 {preview.filename}</strong>
+          <p className="field-help">
+            共 {preview.entries.length} 个来源：可添加 {counts.addable} 个
+            {counts.duplicate ? `，重复 ${counts.duplicate} 个` : ""}
+            {counts.skipped ? `，无法添加 ${counts.skipped} 个` : ""}。确认后才会联网读取。
+          </p>
+          <ul className="opml-entries">
+            {preview.entries.map((entry, index) => (
+              <li key={`${entry.url}-${index}`}>
+                <span title={entry.url}>{entry.title || entry.url}</span>
+                <span data-status={entry.status}>{opmlLabel(entry)}</span>
+              </li>
+            ))}
+          </ul>
+          <div className="inline-actions">
+            <button
+              type="button"
+              className="button primary small"
+              disabled={busy || !counts.addable}
+              onClick={() =>
+                addAll(preview.entries.filter((e) => e.status === "new" || e.status === "resubscribe"))
+              }
+            >
+              {busy ? "添加中…" : `添加 ${counts.addable} 个订阅`}
+            </button>
+            <button type="button" className="button quiet small" disabled={busy} onClick={() => setPreview(null)}>
+              取消
+            </button>
+          </div>
+        </div>
+      )}
+      {importFailed.length > 0 && (
+        <div className="notice warning" role="status">
+          <TriangleAlert size={16} aria-hidden="true" />
+          <div className="notice-body">
+            <span className="notice-title">{importFailed.length} 个订阅未能添加</span>
+            {importFailed.map((item) => (
+              <p key={item.url}>
+                {item.title || item.url}：{item.error}
+              </p>
+            ))}
+            <div className="notice-actions">
+              <button type="button" className="button" disabled={busy} onClick={() => addAll(importFailed)}>
+                {importFailed.length === 1 ? "重试这个订阅" : `重试这 ${importFailed.length} 个`}
+              </button>
+              <button type="button" className="button quiet" onClick={() => setImportFailed([])}>
+                知道了
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       {feeds.length > 0 && (
         <div className="feed-toolbar">
           <button
@@ -198,6 +314,22 @@ export function FeedPanel({ library, onLibrary, onRefresh, adding, setAdding }: 
               <p className="muted">
                 只在点击“更新订阅”时联网。取消订阅会保留已收录的文章和笔记。
               </p>
+              {(api.opmlPreview || api.exportOpml) && (
+                <div className="inline-actions">
+                  {api.opmlPreview && (
+                    <button type="button" className="button quiet small" disabled={busy} onClick={() => setImporting(true)}>
+                      <Upload size={13} aria-hidden="true" />
+                      导入 OPML
+                    </button>
+                  )}
+                  {api.exportOpml && (
+                    <button type="button" className="button quiet small" disabled={busy} onClick={exportList}>
+                      <Download size={13} aria-hidden="true" />
+                      导出 OPML
+                    </button>
+                  )}
+                </div>
+              )}
               {feeds.map((feed) => (
                 <div className="feed-source" key={feed.id}>
                   <div>

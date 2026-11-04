@@ -1,5 +1,5 @@
 import { useMemo, type ReactNode } from "react";
-import { NotebookPen, Search } from "lucide-react";
+import { Check, FilePlus2, NotebookPen, Search } from "lucide-react";
 import type { Reading, Library } from "../../shared/contracts";
 import { readingIndex, type ReadingFilter } from "./filterReadings";
 import { groupReadings, publishedDates, readingDate } from "./orderReadings";
@@ -23,6 +23,9 @@ interface ReadingListProps {
   busy: boolean;
   tools: ReactNode;
   header: ReactNode;
+  /** Selected ids while choosing notes to compose; null when not composing. */
+  composing?: Set<string> | null;
+  onCompose?: () => void;
 }
 
 const timeFormat = new Intl.DateTimeFormat("zh-CN", {
@@ -50,6 +53,8 @@ export function ReadingList({
   busy,
   tools,
   header,
+  composing,
+  onCompose,
 }: ReadingListProps) {
   const content = useMemo(() => readingIndex(library.items), [library.items]);
   const feedTitles = useMemo(
@@ -120,7 +125,17 @@ export function ReadingList({
       </div>
       <div className="list-scroll" aria-label="文章列表">
         <p className="list-status" role="status">
-          {filtered ? `${visible.length} 篇匹配文章` : `共 ${total} 篇`}
+          {composing
+            ? "点选要整理的笔记（只能选择有笔记的文章）"
+            : filtered
+              ? `${visible.length} 篇匹配文章`
+              : `共 ${total} 篇`}
+          {!composing && onCompose && (
+            <button type="button" className="link-button" disabled={busy} onClick={onCompose}>
+              <FilePlus2 size={12} aria-hidden="true" />
+              整理多篇笔记
+            </button>
+          )}
         </p>
         {visible.length === 0 && (
           <p className="list-empty">
@@ -143,16 +158,23 @@ export function ReadingList({
               const entry = content.get(item.id);
               const feed = entry ? feedTitles.get(entry.feedId) : undefined;
               const hasNote = !!item.note.trim();
+              const chosen = !!composing?.has(item.id);
               return (
                 <button
                   type="button"
-                  className={`list-item reading-item${selectedId === item.id ? " active" : ""}${item.read ? " read" : ""}`}
+                  className={`list-item reading-item${!composing && selectedId === item.id ? " active" : ""}${chosen ? " active" : ""}${item.read ? " read" : ""}`}
                   key={item.id}
                   onClick={() => void select(item)}
-                  disabled={busy}
-                  aria-current={selectedId === item.id ? "true" : undefined}
+                  disabled={busy || (!!composing && !hasNote)}
+                  aria-current={!composing && selectedId === item.id ? "true" : undefined}
+                  aria-pressed={composing ? chosen : undefined}
                 >
                   <span className="reading-item-grid">
+                    {composing && (
+                      <span className="compose-check" aria-hidden="true">
+                        {chosen ? <Check size={14} /> : null}
+                      </span>
+                    )}
                     <span
                       className={item.read ? "reading-dot" : "reading-dot unread"}
                       aria-hidden="true"

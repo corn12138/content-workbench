@@ -2,6 +2,7 @@ import { useEffect, useRef } from "react";
 import {
   ArrowUpRight,
   ChevronLeft,
+  ChevronRight,
   Info,
   NotebookPen,
   PanelLeftOpen,
@@ -13,6 +14,7 @@ import { api, errorMessage } from "../api";
 import { Markdown } from "../Markdown";
 import { contentState } from "./contentKind";
 import { sourceName } from "./sourceName";
+import { offsetFor } from "./readingPosition";
 
 interface Props {
   record: Reading;
@@ -28,6 +30,14 @@ interface Props {
   toggleNotes: () => void;
   toggleRead: () => void;
   notify: (message: string) => void;
+  next: Reading | null;
+  nextUnread: Reading | null;
+  /** Explains the scope "next" works in, e.g. "当前筛选". */
+  scope: string;
+  onNext: (item: Reading) => void;
+  /** Stored scroll ratio to restore for this article, if any. */
+  restoreRatio: number | null;
+  onPosition: (ratio: number) => void;
 }
 
 const dateFormat = new Intl.DateTimeFormat("zh-CN", {
@@ -50,6 +60,12 @@ export function ReaderPane({
   toggleNotes,
   toggleRead,
   notify,
+  next,
+  nextUnread,
+  scope,
+  onNext,
+  restoreRatio,
+  onPosition,
 }: Props) {
   const scroller = useRef<HTMLDivElement>(null);
   const state = contentState(feedItem);
@@ -58,8 +74,19 @@ export function ReaderPane({
   const text = feedItem?.content?.value || feedItem?.summary || "";
 
   useEffect(() => {
-    if (scroller.current) scroller.current.scrollTop = 0;
-  }, [record.id]);
+    const node = scroller.current;
+    if (!node) return;
+    node.scrollTop = 0;
+    if (restoreRatio === null || restoreRatio <= 0) return;
+    // Wait for the article to lay out, then clamp to the current height so changed content
+    // cannot place the reader past the end.
+    let frame = requestAnimationFrame(() => {
+      frame = requestAnimationFrame(() => {
+        node.scrollTop = offsetFor(restoreRatio, node.scrollHeight, node.clientHeight);
+      });
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [record.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const openOriginal = () => {
     void api.openExternal(record.url).catch((error) => {
@@ -105,7 +132,17 @@ export function ReaderPane({
         </button>
       </div>
       {/* One scroll container for the whole article; wide code and tables scroll inside their own regions. */}
-      <div className="reader-scroll" ref={scroller} tabIndex={0} aria-label="正文">
+      <div
+        className="reader-scroll"
+        ref={scroller}
+        tabIndex={0}
+        aria-label="正文"
+        onScroll={(event) => {
+          const node = event.currentTarget;
+          const range = node.scrollHeight - node.clientHeight;
+          if (range > 0) onPosition(node.scrollTop / range);
+        }}
+      >
         <div className="reader-column">
           <h1 className="reader-title">{record.title || sourceName(record.url)}</h1>
           <p className="reader-meta">
@@ -160,6 +197,30 @@ export function ReaderPane({
                 写一条笔记
               </button>
             )}
+            <nav className="reader-next" aria-label="继续阅读">
+              {next || nextUnread ? (
+                <>
+                  {next && (
+                    <button type="button" className="button" disabled={busy} onClick={() => onNext(next)}>
+                      <span className="reader-next-label">下一篇</span>
+                      <span className="reader-next-title">{next.title || sourceName(next.url)}</span>
+                      <ChevronRight size={14} aria-hidden="true" />
+                    </button>
+                  )}
+                  {nextUnread && nextUnread.id !== next?.id && (
+                    <button type="button" className="button quiet" disabled={busy} onClick={() => onNext(nextUnread)}>
+                      <span className="reader-next-label">下一篇未读</span>
+                      <span className="reader-next-title">{nextUnread.title || sourceName(nextUnread.url)}</span>
+                      <ChevronRight size={14} aria-hidden="true" />
+                    </button>
+                  )}
+                </>
+              ) : (
+                <p className="muted small" role="status">
+                  {scope}中没有下一篇了。
+                </p>
+              )}
+            </nav>
           </div>
         </div>
       </div>

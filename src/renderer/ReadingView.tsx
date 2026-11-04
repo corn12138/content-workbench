@@ -1,5 +1,5 @@
 import { useDeferredValue, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
-import { BookOpen, ChevronDown, Link2, Plus, Rss } from "lucide-react";
+import { BookOpen, ChevronDown, FileUp, Link2, Plus, Rss } from "lucide-react";
 import type { Draft, Reading, Library } from "../shared/contracts";
 import { api } from "./api";
 import { useLayout } from "./layout";
@@ -12,6 +12,8 @@ import { orderReadings } from "./reading/orderReadings";
 import { filterReadings, readingIndex } from "./reading/filterReadings";
 import { FeedPanel } from "./reading/FeedPanel";
 import { sourceName } from "./reading/sourceName";
+import { nextReading } from "./reading/readingNav";
+import { loadPosition, positionWriter, savePosition } from "./reading/readingPosition";
 import "./reading.css";
 
 interface ReadingViewProps {
@@ -23,6 +25,7 @@ interface ReadingViewProps {
 }
 
 type Adding = "feed" | "link" | null;
+const initialPosition = () => loadPosition();
 
 export function ReadingView(props: ReadingViewProps) {
   const layout = useLayout();
@@ -33,10 +36,25 @@ export function ReadingView(props: ReadingViewProps) {
     () => orderReadings(props.items, library.items),
     [props.items, library.items],
   );
+  const [position] = useState(initialPosition);
   const editor = useReadingEditor({
     ...props,
     items: libraryLoaded ? readings : [],
+    preferredId: position?.id,
   });
+  const writer = useRef(positionWriter(savePosition));
+  useEffect(() => () => writer.current.flush(), []);
+  // The stored position applies once, to the article it belongs to; any other article starts at the top.
+  const [resume, setResume] = useState(position);
+  const recordId = editor.record?.id;
+  useEffect(() => {
+    if (!recordId) return;
+    if (resume && resume.id !== recordId) setResume(null);
+    if (!resume || resume.id !== recordId) writer.current.update({ id: recordId, ratio: 0 });
+  }, [recordId]); // eslint-disable-line react-hooks/exhaustive-deps
+  const [importing, setImporting] = useState(false);
+  const [composing, setComposing] = useState(false);
+  const [chosen, setChosen] = useState<Set<string>>(() => new Set());
   const [filter, setFilter] = useState<ReadingFilter>("all");
   const [query, setQuery] = useState("");
   const [source, setSource] = useState("");
@@ -72,6 +90,16 @@ export function ReadingView(props: ReadingViewProps) {
 
   const select = async (next: Reading) => {
     if (busy) return;
+    if (composing) {
+      if (!next.note.trim()) return;
+      setChosen((current) => {
+        const copy = new Set(current);
+        if (copy.has(next.id)) copy.delete(next.id);
+        else copy.add(next.id);
+        return copy;
+      });
+      return;
+    }
     if (editor.record?.id === next.id) {
       setPane("detail");
       return;
@@ -150,6 +178,42 @@ export function ReadingView(props: ReadingViewProps) {
     }
   };
 
+  /** Builds one draft from the chosen notes in the visible order; notes are saved first. */
+  const compose = async () => {
+    if (busy || !api.composeNotes) return;
+    const ids = visible.filter((item) => chosen.has(item.id)).map((item) => item.id);
+    if (!ids.length) return;
+    setBusy(true);
+    let created = false;
+    try {
+      await editor.flush();
+      const result = await api.composeNotes(ids);
+      created = true;
+      setComposing(false);
+      setChosen(new Set());
+      await props.onDraft(result.draft);
+      props.notify(
+        result.duplicate
+          ? "这组笔记已经整理过，已为你打开之前的稿件。"
+          : `已用 ${ids.length} 条笔记生成稿件，原笔记保留在阅读中。`,
+      );
+    } catch (error) {
+      props.notify(
+        created
+          ? "稿件已生成，可在“稿件”中查看。"
+          : error instanceof Error
+            ? `未能整理：${error.message}`
+            : "暂时无法整理成稿。",
+      );
+    } finally {
+      setBusy(false);
+    }
+  };
+  const ordered = readings;
+  const scope = query.trim() || source || filter !== "all" ? "当前筛选结果" : "全部文章";
+  const next = record ? nextReading(ordered, visible, record.id, false) : null;
+  const nextUnread = record ? nextReading(ordered, visible, record.id, true) : null;
+
   const openNotes = () => {
     setNotesOpen(true);
     setNoteFocus((value) => value + 1);
@@ -190,6 +254,21 @@ export function ReadingView(props: ReadingViewProps) {
             <Link2 size={15} aria-hidden="true" />
             添加文章链接
           </button>
+          {api.opmlPreview && (
+            <button
+              type="button"
+              role="menuitem"
+              onClick={() => {
+                if (addMenu.current) addMenu.current.open = false;
+                setAdding(null);
+                setPane("list");
+                setImporting(true);
+              }}
+            >
+              <FileUp size={15} aria-hidden="true" />
+              导入订阅列表（OPML）
+            </button>
+          )}
         </div>
       </details>
     </div>
@@ -207,6 +286,8 @@ export function ReadingView(props: ReadingViewProps) {
           onRefresh={props.onRefresh}
           adding={adding === "feed"}
           setAdding={(value) => setAdding(value ? "feed" : null)}
+          importing={importing}
+          setImporting={setImporting}
         />
       )}
       {adding === "link" && (
@@ -252,7 +333,45 @@ export function ReadingView(props: ReadingViewProps) {
           busy={busy}
           header={header}
           tools={tools}
+          composing={composing ? chosen : null}
+          onCompose={
+            api.composeNotes && props.items.some((item) => item.note.trim())
+              ? () => {
+                  setComposing(true);
+                  setChosen(new Set());
+                  setFilter("notes");
+                }
+              : undefined
+          }
         />
+        {composing && (
+          <div className="compose-bar" role="region" aria-label="整理多篇笔记">
+            <span>
+              已选 {chosen.size} 篇 · 按列表顺序整理，正文为你的笔记并附来源链接
+            </span>
+            <span className="spacer" />
+            <button
+              type="button"
+              className="button primary small"
+              disabled={busy || !chosen.size}
+              aria-busy={busy}
+              onClick={() => void compose()}
+            >
+              生成稿件
+            </button>
+            <button
+              type="button"
+              className="button quiet small"
+              disabled={busy}
+              onClick={() => {
+                setComposing(false);
+                setChosen(new Set());
+              }}
+            >
+              取消
+            </button>
+          </div>
+        )}
       </section>
       {showReader && record ? (
         <ReaderPane
@@ -272,6 +391,12 @@ export function ReadingView(props: ReadingViewProps) {
             void editor.flush().catch(() => {});
           }}
           notify={props.notify}
+          next={next}
+          nextUnread={nextUnread}
+          scope={scope}
+          onNext={(item) => void select(item)}
+          restoreRatio={resume && resume.id === record.id ? resume.ratio : null}
+          onPosition={(ratio) => writer.current.update({ id: record.id, ratio })}
         />
       ) : (
         !compact && (
