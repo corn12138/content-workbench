@@ -24,6 +24,8 @@ mod workflow_schema;
 mod workflow_backup;
 #[cfg(test)]
 mod workflow_tests;
+#[cfg(test)]
+mod preview_seed;
 
 pub use full_backup::{BackupSummary, ExportInput};
 pub use validation::{assert_id, now};

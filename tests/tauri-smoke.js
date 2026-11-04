@@ -2,6 +2,7 @@
 (async () => {
   const step = (action, details = null) => window.__TAURI_INTERNALS__.invoke("comparison_step", { action, details });
   const wait = async (predicate, label) => {
+    void step("progress", label).catch(() => {});
     const deadline = Date.now() + 15000;
     while (Date.now() < deadline) {
       if (await predicate()) return;
@@ -67,6 +68,12 @@
       && diagrams.slice(2).every(node => node.textContent.includes("图表未能渲染"));
   };
   const editor = () => document.querySelector('[aria-label="文章正文"]');
+  // The publish action reads "继续准备发布" once an unfinished preparation exists for the draft.
+  const publishAction = () => button("准备发布") || button("继续准备发布");
+  const clickPublish = async () => {
+    await wait(() => publishAction() && !publishAction().disabled, "publish action");
+    publishAction().click();
+  };
   const tile = (platform) => document.querySelector(`.platform-tile[data-platform="${platform}"]`);
   const openNotes = async () => {
     await wait(() => document.querySelector('[aria-controls="reading-notes"]'), "notes toggle");
@@ -85,9 +92,30 @@
   if (phase === "menuQuit") {
     const before = await api.snapshot();
     assert(before.drafts.some((draft) => draft.title === "Tauri 测试样本 · 关闭时保存"), "Prior native close did not persist");
+    // Unfinished publishing preparation survives restart and is re-checked after the draft changes.
+    const fixtureDraft = () => [...document.querySelectorAll(".list-item")].find((node) => node.textContent.includes("Tauri 本地测试样本"));
+    await wait(fixtureDraft, "fixture draft in list");
+    fixtureDraft().click();
+    await wait(() => button("继续准备发布"), "resumable preparation offered on the draft");
+    await click("继续准备发布");
+    await wait(() => document.querySelector("#x-post-text")?.value === "网页辅助短帖 · 重开后仍在", "edited X text restored after restart");
+    assert(document.querySelector('[aria-label="已发布的作品链接"]')?.value === "https://x.com/example/status/1111", "Pending X link lost after restart");
+    assert(!document.querySelector(".prep-stale"), "Unchanged draft marked stale");
+    await click("返回编辑");
+    await wait(editor, "editor after preparation");
+    fill('[aria-label="文章正文"]', editor().value + "\n\n重开后追加的一段。");
+    await click("继续准备发布");
+    await wait(() => document.querySelector(".prep-stale"), "edited draft requires re-checking");
+    assert(document.querySelector("#x-post-text").value === "网页辅助短帖 · 重开后仍在", "Draft edit overwrote the user's X text");
+    assert(button("复制并打开 X").disabled, "Stale preparation can still be copied");
+    await click("已核对，按当前版本继续");
+    await wait(() => !document.querySelector(".prep-stale") && !button("复制并打开 X").disabled, "re-checked preparation usable");
+    await click("返回编辑");
     await click("阅读");
+    // The last article read before quitting is reopened.
+    await wait(() => document.querySelector(".reader-title")?.textContent.includes("Tauri 测试资料"), "last article restored after restart");
     await openNotes();
-    await step("complete", { reopenedPersistentData: true, applicationExitHandshake: true });
+    await step("complete", { reopenedPersistentData: true, applicationExitHandshake: true, preparationRestoredAfterRestart: true, preparationStaleAfterEdit: true, readingPositionRestored: true });
     fill("#reading-note", "Tauri 测试笔记 · 退出时保存");
     await step("close");
     return;
@@ -96,6 +124,7 @@
   assert(typeof window.require === "undefined" && typeof window.process === "undefined", "Renderer exposes Node globals");
   await click("新建稿件");
   await wait(editor, "draft editor");
+  await wait(() => document.activeElement?.getAttribute("aria-label") === "文章标题", "new draft focuses its title");
   fill('[aria-label="文章标题"]', "Tauri 本地测试样本 · 一次重构的记录");
   const imageReference = await step("library_fixture");
   fill('[aria-label="文章正文"]', window.__markdownFixture + "\n\n![Fixture](" + imageReference + ' "图片标题")');
@@ -119,7 +148,7 @@
   const widths = [[1440, 900], [1280, 820], [1279, 820], [1180, 800], [1000, 760], [960, 720], [959, 720], [880, 680], [800, 620], [1180, 800]];
   const toolbarOneRow = () => {
     const toolbar = document.querySelector(".editor-toolbar").getBoundingClientRect();
-    return button("准备发布").getBoundingClientRect().bottom <= toolbar.top + 56;
+    return publishAction().getBoundingClientRect().bottom <= toolbar.top + 56;
   };
   for (const [width, height] of widths) {
     await resizeTo(width, height);
@@ -180,7 +209,7 @@
   assert(document.documentElement.scrollWidth <= window.innerWidth, "Markdown overflows narrow viewport");
   assert(md.scrollWidth <= md.clientWidth + 1, "Markdown content escaped its column");
   assert(md.querySelector("pre").textContent.includes("  console.log"), "Code indentation lost");
-  await click("准备发布");
+  await clickPublish();
   await wait(() => document.querySelector(".publish-workspace"), "publication preparation");
   await wait(() => document.activeElement?.id === "publish-title", "publishing preparation focus");
   const preview = document.querySelector(".publish-preview .markdown");
@@ -212,6 +241,9 @@
   assert(preview.contains(document.activeElement), "Publish anchor jumped into editor");
   assert(document.documentElement.scrollWidth <= window.innerWidth, "Publish preview overflows narrow viewport");
   tile("x").click();
+  await wait(() => button("网页辅助发布")?.getAttribute("aria-pressed") === "true", "web-assisted X is the default without an account");
+  await wait(() => button("复制并打开 X"), "X web-assisted steps without a developer app");
+  await click("官方 API（实验性）");
   await wait(() => document.querySelector(".x-setup input"), "X setup without credentials");
   assert(button("连接 X")?.disabled, "X connection must require a public client ID");
   fill(".x-setup input", "invalid client id");
@@ -242,7 +274,7 @@
   assert(snapshot.publications[0]?.confirmation === "manual", "Manual publication provenance lost");
   await click("返回编辑");
   await wait(editor, "editor after publishing preparation");
-  await wait(() => document.activeElement === button("准备发布"), "focus returned to the publish action");
+  await wait(() => document.activeElement === publishAction(), "focus returned to the publish action");
   await click("历史版本");
   await wait(() => document.querySelector(".history-list button"), "saved revision list");
   document.querySelector(".history-list button").click();
@@ -263,11 +295,11 @@
   await click("加载这张图片");
   await wait(() => document.querySelector(".image-placeholder")?.textContent.includes("外链图片无法读取"), "private remote image blocked");
   assert(!document.querySelector(".editor-content .markdown img"), "Private remote image rendered");
-  await click("准备发布");
+  await clickPublish();
   await wait(() => document.querySelector(".image-preparation button:not(:disabled)"), "image preparation entry");
   document.querySelector(".image-preparation button").click();
   await wait(() => document.querySelector(".image-preparation")?.textContent.includes("没有可用图片"), "private image preparation rejected");
-  assert(document.querySelector(".image-preparation")?.textContent.includes("第 1 张图片"), "Image failure must identify its position");
+  assert(document.querySelector(".image-preparation")?.textContent.includes("第 1 张"), "Image failure must identify its position");
   await click("返回编辑");
   await click("设置");
   await wait(() => button("检查更新"), "updater settings");
@@ -282,17 +314,57 @@
   const outcome = () => document.querySelector(".x-outcome")?.dataset.outcome;
   const openX = async () => {
     await click("稿件");
-    await wait(() => button("准备发布") && !button("准备发布").disabled, "draft ready to publish");
-    await click("准备发布");
+    await wait(() => publishAction() && !publishAction().disabled, "draft ready to publish");
+    await clickPublish();
     await wait(() => tile("x") && !tile("x").disabled, "publish workspace");
     tile("x").click();
-    await wait(() => document.querySelector("#x-post-text"), "X composer with test account");
+    await click("官方 API（实验性）");
+    await wait(() => document.querySelector("#x-post-text") && button("发布到 X…"), "X composer with test account");
     fill("#x-post-text", "回归测试短帖，不会发送");
     await click("发布到 X…");
     await wait(() => button("确认发布到 @example"), "final account confirmation");
     await click("确认发布到 @example");
   };
   try {
+    // A failed save keeps the input and exports exactly the current editor content.
+    await click("稿件");
+    await wait(editor, "editor before failure injection");
+    api.saveDraft = fail("磁盘写入失败（测试注入）");
+    const unsaved = editor().value + "\n\n![随稿图片](" + imageReference + ")\n\n保存失败后的最新输入 · " + Date.now();
+    fill('[aria-label="文章正文"]', unsaved);
+    await wait(() => document.querySelector(".notice.danger.banner")?.textContent.includes("磁盘写入失败") && button("另存当前内容"), "save failure banner with export");
+    assert(editor().value === unsaved, "Failed save changed the editor input");
+    const exported = await step("export_current", { title: document.querySelector('[aria-label="文章标题"]').value, body: editor().value, project: "" });
+    assert(exported.sameBody && exported.bundled && exported.images === 1, `Exported copy differs from the unsaved input or lost its image: ${JSON.stringify(exported)}`);
+    assert(!(await original.snapshot()).drafts.some((d) => d.body === unsaved), "Export was mistaken for a database save");
+    assert(document.querySelector(".save-status")?.textContent.includes("未保存"), "Export cleared the save failure");
+    api.saveDraft = original.saveDraft;
+    await click("重试保存");
+    await wait(() => !document.querySelector(".notice.danger.banner") && document.querySelector(".save-status")?.textContent.includes("已保存"), "retry saves the kept input");
+    assert((await original.snapshot()).drafts.some((d) => d.body === unsaved), "Retried save lost the input");
+    // ⌘N / Ctrl+N creates a draft and focuses it; IME composition never does.
+    const mac = /mac/i.test(navigator.platform);
+    const before = (await original.snapshot()).drafts.length;
+    window.dispatchEvent(new KeyboardEvent("keydown", { key: "n", metaKey: mac, ctrlKey: !mac, isComposing: true }));
+    await new Promise((resolve) => setTimeout(resolve, 300));
+    assert((await original.snapshot()).drafts.length === before, "Shortcut fired during IME composition");
+    window.dispatchEvent(new KeyboardEvent("keydown", { key: "n", metaKey: mac, ctrlKey: !mac }));
+    await wait(async () => (await original.snapshot()).drafts.length === before + 1, "shortcut created a draft");
+    await wait(() => document.activeElement?.getAttribute("aria-label") === "文章标题", "shortcut draft focuses its title");
+    // Archive can be undone directly from the notice.
+    document.querySelector(".editor-toolbar .more-menu").open = true;
+    await click("归档稿件");
+    await wait(() => document.querySelector(".toast")?.textContent.includes("已归档") && button("撤销"), "archive undo offered");
+    await click("撤销");
+    await wait(() => document.querySelector(".toast")?.textContent.includes("已撤销归档") && editor(), "archive undone");
+    assert((await original.snapshot()).drafts.filter((d) => !d.archived).length === before + 1, "Undo did not restore the draft");
+    document.querySelector(".editor-toolbar .more-menu").open = true;
+    await click("归档稿件");
+    await wait(() => document.querySelector(".toast")?.textContent.includes("已归档"), "archive kept");
+    const fixtureItem = () => [...document.querySelectorAll(".list-item")].find((node) => node.textContent.includes("Tauri 本地测试样本"));
+    await wait(fixtureItem, "fixture draft listed");
+    fixtureItem().click();
+    await wait(() => editor() && publishAction() && !publishAction().disabled, "fixture draft reopened");
     api.xAccount = async () => ({ connected: true, username: "example", clientId: "fixture", callback: "http://127.0.0.1:34187/oauth/x/callback" });
     api.openExternal = fail("无法打开链接。");
     api.copyText = fail("复制未完成。");
@@ -326,20 +398,33 @@
     await click("返回编辑");
 
     let snapshotFailures = 1;
+    const summary = { format: "完整备份（含发布准备与反馈）", exportedAt: "2026-11-01T00:00:00.000Z", drafts: 2, archivedDrafts: 0, revisions: 5, publications: 1, readings: 2, notes: 1, feeds: 1, feedItems: 1, images: 1, preparations: 1, compositions: 0, feedback: 1 };
+    api.inspectBackup = counted(async () => ({ token: "fixture-token", filename: "fixture.cwb", size: 2048, summary }));
+    api.restoreInspected = counted(async () => true);
+    api.cancelRestore = counted(async () => {});
     api.restoreBackup = counted(async () => true);
+    await click("设置");
+    // Preflight shows the contents first; cancelling changes nothing.
+    await click("恢复备份");
+    await wait(() => document.querySelector(".restore-preview")?.textContent.includes("反馈记录 1 条"), "restore preflight summary");
+    assert(api.restoreInspected.calls === 0, "Restore ran before confirmation");
+    await click("取消");
+    await wait(() => document.body.textContent.includes("已取消，现有资料没有改动"), "restore cancelled");
+    assert(api.restoreInspected.calls === 0 && api.cancelRestore.calls === 1, "Cancel restored or kept the pending file");
     api.snapshot = counted(async () => {
       if (snapshotFailures-- > 0) throw new Error("资料暂时无法读取");
       return original.snapshot();
     });
-    await click("设置");
     await click("恢复备份");
+    await wait(() => button("恢复这份备份"), "restore confirmation");
+    await click("恢复这份备份");
     await wait(() => document.querySelector(".restore-refresh")?.textContent.includes("资料已恢复，列表暂未刷新"), "restored but not refreshed");
     assert(!document.body.textContent.includes("恢复未完成"), "Completed restore reported as failed");
     await click("稿件");
     await wait(() => document.body.textContent.includes("资料已恢复，列表暂未刷新") && !editor(), "stale list blocked");
     await click("重新读取资料");
     await wait(() => document.querySelector(".list-item"), "data read after retry");
-    assert(api.restoreBackup.calls === 1 && api.snapshot.calls >= 2, "Retry ran restore again or did not refresh");
+    assert(api.restoreInspected.calls === 1 && api.restoreBackup.calls === 0 && api.snapshot.calls >= 2, "Retry ran restore again or did not refresh");
 
     let checks = 0;
     api.checkUpdate = async () => { if (checks++ === 0) throw new Error("网络不可用"); return { version: "9.9.9", notes: "" }; };
@@ -356,10 +441,67 @@
     api.installUpdate = fail("请先重新检查更新。");
     await click("重试升级");
     await wait(() => document.querySelector(".update-failure")?.textContent.includes("请先重新检查更新"), "pre-backup install failure");
-    assert(!/已保留|没有改动|未改动/.test(document.querySelector(".update-failure").textContent), "Pre-backup install failure claims a kept backup");
+    assert(!/已保留|没有改动|未改动|已建立升级备份/.test(document.querySelector(".update-failure").textContent), "Pre-backup install failure claims a kept backup");
+    // A later successful check never replaces or softens the unresolved install failure.
+    api.checkUpdate = async () => null;
+    await click("检查更新");
+    await wait(() => document.body.textContent.includes("当前已是最新版本"), "later check succeeded");
+    const installNotice = document.querySelector('.update-failure[data-kind="install"]');
+    assert(installNotice?.textContent.includes("请先重新检查更新") && !installNotice.textContent.includes("最新版本"), "Check result overwrote the install failure");
   } finally {
     Object.assign(api, original);
   }
+  // X without a developer app: copy and open the official composer, never counted as published.
+  try {
+    api.copyText = counted(async () => {});
+    api.openExternal = counted(async () => { throw new Error("浏览器未能打开（测试注入）"); });
+    await click("稿件");
+    const fixtureRow = () => [...document.querySelectorAll(".list-item")].find((node) => node.textContent.includes("Tauri 本地测试样本"));
+    await wait(fixtureRow, "fixture draft listed after restore");
+    fixtureRow().click();
+    await wait(() => publishAction() && !publishAction().disabled, "draft ready for web-assisted X");
+    await clickPublish();
+    await wait(() => tile("x"), "publish workspace for web X");
+    tile("x").click();
+    await click("网页辅助发布");
+    fill("#x-post-text", "网页辅助短帖 · 重开后仍在");
+    await click("复制并打开 X");
+    await wait(() => document.body.textContent.includes("短帖已复制，但浏览器没有打开"), "copy success kept when opening fails");
+    assert(api.copyText.calls === 1 && api.openExternal.calls === 1, "Web-assisted X did not copy then open once");
+    assert(document.body.textContent.includes("这还不算发布"), "Copy presented as publishing");
+    api.openExternal = counted(async () => {});
+    await click("重新打开 X");
+    await wait(() => api.openExternal.calls === 1 && !document.body.textContent.includes("浏览器没有打开"), "reopen only reopens");
+    assert(api.copyText.calls === 1, "Reopening copied again");
+    fill('[aria-label="已发布的作品链接"]', "https://x.com/example/status/1111");
+    assert(!(await original.snapshot()).publications.some((p) => p.url.includes("/1111")), "Typing a link recorded it");
+  } finally {
+    Object.assign(api, original);
+  }
+  await click("返回编辑");
+  await wait(editor, "editor after web-assisted X");
+  const prepared = (await api.workflow()).preparations.find((p) => p.platform === "x");
+  assert(prepared?.xText === "网页辅助短帖 · 重开后仍在" && prepared.pendingUrl === "https://x.com/example/status/1111" && prepared.xMode === "web", "X preparation not saved before leaving");
+  // Manual feedback with unknown versus zero, then a local correction of the manual link.
+  await click("发布记录");
+  await wait(() => document.querySelector(".record-item"), "publication listed");
+  document.querySelector('.record-item [aria-expanded]').click();
+  await wait(() => button("记录反馈"), "record detail");
+  assert(document.querySelector(".record-detail").textContent.includes("发布时为版本"), "Record detail lacks version tracing");
+  await click("记录反馈");
+  const metricInput = (label) => [...document.querySelectorAll(".feedback-fields label")].find((node) => node.textContent.includes(label)).querySelector("input");
+  fill('.feedback-fields label:first-child input', "0");
+  assert(metricInput("阅读").value === "0", "Views input missing");
+  await click("保存反馈");
+  await wait(() => document.querySelector(".feedback-history li"), "feedback saved");
+  const saved = (await api.workflow()).feedback[0];
+  assert(saved.metrics.views === 0 && saved.metrics.likes === null && saved.source === "manual", "Unknown and zero were merged");
+  assert(document.querySelector(".feedback-history").textContent.includes("未知") && document.querySelector(".feedback-history").textContent.includes("手动记录"), "Feedback history labels missing");
+  await click("更正链接");
+  fill('.record-detail input.input', "https://juejin.cn/post/1234567890123456780");
+  await click("保存更正");
+  await wait(async () => (await api.snapshot()).publications.some((p) => p.correctedAt && p.url.endsWith("6780")), "manual link corrected");
+  assert((await api.snapshot()).publications.every((p) => p.confirmation === "manual"), "Correction changed provenance");
   await click("阅读");
   await wait(() => document.querySelector(".reading-workspace"), "reading workspace");
   await openReading("Subscription article");
@@ -416,6 +558,13 @@
   await openReading("Tauri 测试资料");
   await openNotes();
   assert(document.querySelector("#reading-note").value.includes("保存失败"), "Reopened note lost text");
+  await wait(() => button("下一篇") || [...document.querySelectorAll(".reader-next button")].length, "next article offered");
+  [...document.querySelectorAll(".reader-next button")].find((node) => node.textContent.includes("下一篇")).click();
+  await wait(() => document.querySelector(".reader-title")?.textContent.includes("Subscription article"), "next article opened in list order");
+  snapshot = await api.snapshot();
+  assert(!snapshot.readings.find((r) => r.title === "Subscription article")?.read, "Opening the next article marked it read");
+  await openReading("Tauri 测试资料");
+  await openNotes();
   await step("resize");
   await wait(() => window.innerWidth < 900, "narrow window");
   assert(document.documentElement.scrollWidth <= window.innerWidth, "Narrow window overflows horizontally");
@@ -423,8 +572,27 @@
   await wait(editor, "draft from reading note");
   snapshot = await api.snapshot();
   assert(snapshot.drafts.some((draft) => draft.body.includes("来源：https://example.com/engineering-notes")), "Converted note lost attribution");
+  // Compose selected notes into one draft; repeating it opens the same draft.
+  await click("阅读");
+  await wait(() => [...document.querySelectorAll(".list-status .link-button")].some((b) => b.textContent.includes("整理多篇笔记")), "compose entry");
+  [...document.querySelectorAll(".list-status .link-button")].find((b) => b.textContent.includes("整理多篇笔记")).click();
+  const noteItem = () => [...document.querySelectorAll(".reading-item")].find((node) => node.textContent.includes("Tauri 测试资料"));
+  await wait(() => noteItem() && !noteItem().disabled, "note selectable");
+  noteItem().click();
+  await click("生成稿件");
+  await wait(() => editor()?.value.includes("来源：<https://example.com/engineering-notes>"), "composed draft opened");
+  const composedCount = (await api.snapshot()).drafts.length;
+  await click("阅读");
+  await wait(() => [...document.querySelectorAll(".list-status .link-button")].some((b) => b.textContent.includes("整理多篇笔记")), "compose entry again");
+  [...document.querySelectorAll(".list-status .link-button")].find((b) => b.textContent.includes("整理多篇笔记")).click();
+  await wait(() => noteItem() && !noteItem().disabled, "note selectable again");
+  noteItem().click();
+  await click("生成稿件");
+  await wait(() => document.querySelector(".toast")?.textContent.includes("已经整理过"), "duplicate composition reopened");
+  assert((await api.snapshot()).drafts.length === composedCount, "Repeated composition created another draft");
+  assert((await api.workflow()).sources.length === 1 && (await api.snapshot()).readings.some((r) => r.note.includes("保存失败")), "Composition lost sources or notes");
   await step("full_backup_roundtrip");
-  await step("complete", { imagePreparationFailureVisible: true, updateSettingsOfflineGuard: true, juejinInlineAnchorAdaptation: true, mermaidDiagramRendered: true, mermaidErrorsVisible: true, remoteImagesOptIn: true, privateRemoteImageBlocked: true, markdownHistoryParity: true, markdownEqualWidthAppearance: true, juejinMeasuredTypography: true, mermaidPixelParity: true, markdownFixtureRendered: true, markdownAnchorsScoped: true, markdownEditorPublishParity: true, markdownNarrowLayout: true, xSetupRendered: true, unauthenticatedPublishBlocked: true, cachedContentSearch: true, storedImageRendered: true, rssContentRendered: true, rssRichLayout: true, rssCodeWhitespace: true, rssRelativeLinks: true, rssAnchors: true, rssImagesOptIn: true, rssContinuousReading: true, publishFocusRestored: true, xOutcomeSurvivesSecondaryFailure: true, xLocalFailureNotRejection: true, restoreRefreshSeparated: true, restoreRetryRefreshOnly: true, updateFailureNeutral: true, updateCheckErrorCleared: true, updatePreBackupFailureNeutral: true, xServerFailureNotRejection: true, responsiveSweep: true, editorToolbarOneRow: true, notesSurviveLayout: true, rssNarrowLayout: true, privateFeedBlocked: true, fullBackupRoundtrip: true, rendererIsolation: true, autosaveOnNavigation: true, markdownSanitized: true, nativeClipboard: clipboardAvailable, nativeClipboardSkipped: !clipboardAvailable, manualPublicationRecorded: true, readingNoteSaved: true, readingToDraft: true, narrowViewport: true });
+  await step("complete", { newDraftTitleFocus: true, saveFailureExportsCurrentInput: true, exportedBundleReimported: true, archiveUndo: true, shortcutNewDraftIgnoresIme: true, xWebAssistWithoutApp: true, copySuccessKeptWhenOpenFails: true, preparationSavedBeforeLeaving: true, manualFeedbackUnknownVsZero: true, manualRecordCorrected: true, nextArticleInOrder: true, multiNoteCompositionIdempotent: true, imagePreparationFailureVisible: true, updateSettingsOfflineGuard: true, juejinInlineAnchorAdaptation: true, mermaidDiagramRendered: true, mermaidErrorsVisible: true, remoteImagesOptIn: true, privateRemoteImageBlocked: true, markdownHistoryParity: true, markdownEqualWidthAppearance: true, juejinMeasuredTypography: true, mermaidPixelParity: true, markdownFixtureRendered: true, markdownAnchorsScoped: true, markdownEditorPublishParity: true, markdownNarrowLayout: true, xSetupRendered: true, unauthenticatedPublishBlocked: true, cachedContentSearch: true, storedImageRendered: true, rssContentRendered: true, rssRichLayout: true, rssCodeWhitespace: true, rssRelativeLinks: true, rssAnchors: true, rssImagesOptIn: true, rssContinuousReading: true, publishFocusRestored: true, xOutcomeSurvivesSecondaryFailure: true, xLocalFailureNotRejection: true, restoreRefreshSeparated: true, restoreRetryRefreshOnly: true, restorePreflightBeforeConfirm: true, restoreCancelUnchanged: true, installFailureSurvivesLaterCheck: true, updateFailureNeutral: true, updateCheckErrorCleared: true, updatePreBackupFailureNeutral: true, xServerFailureNotRejection: true, responsiveSweep: true, editorToolbarOneRow: true, notesSurviveLayout: true, rssNarrowLayout: true, privateFeedBlocked: true, fullBackupRoundtrip: true, rendererIsolation: true, autosaveOnNavigation: true, markdownSanitized: true, nativeClipboard: clipboardAvailable, nativeClipboardSkipped: !clipboardAvailable, manualPublicationRecorded: true, readingNoteSaved: true, readingToDraft: true, narrowViewport: true });
   // Closing immediately exercises the pending-save barrier instead of waiting for debounce.
   fill('[aria-label="文章标题"]', "Tauri 测试样本 · 关闭时保存");
   await step("close");

@@ -130,14 +130,42 @@ pub fn comparison_step(
             let mut store = app_state.lock()?;
             let before = store.snapshot()?;
             let library = store.library()?;
+            let workflow = store.workflow()?;
             let backup = store.export_full_backup()?;
             store.restore_full_backup(&backup)?;
-            if before != store.snapshot()? || library != store.library()? {
+            if before != store.snapshot()?
+                || library != store.library()?
+                || workflow != store.workflow()?
+            {
                 return Err("Full backup roundtrip changed content".into());
             }
             Ok(json!(true))
         }
-
+        // Exports the editor content the UI passes in with the production command logic, then imports
+        // the copy into a separate store inside the isolated fixture directory.
+        "export_current" => {
+            let input: crate::store::ExportInput =
+                serde_json::from_value(details.ok_or("Missing export input")?)
+                    .map_err(|e| e.to_string())?;
+            let exported = app.state::<AppState>().lock()?.export_current(&input)?;
+            let directory = state
+                .directory
+                .join(format!("export-check-{}", uuid::Uuid::new_v4()));
+            let mut fresh = crate::store::WorkbenchStore::open(directory)?;
+            let imported = if exported.bundled {
+                fresh.import_bundle("copy.zip", &exported.bytes)?
+            } else {
+                fresh.import_markdown(
+                    "copy.md",
+                    std::str::from_utf8(&exported.bytes).map_err(|e| e.to_string())?,
+                )?
+            };
+            Ok(json!({
+                "sameBody": imported.draft.body == input.body,
+                "bundled": exported.bundled,
+                "images": exported.images,
+            }))
+        }
         "clipboard_available" => Ok(json!(state
             .clipboard
             .lock()
@@ -223,6 +251,13 @@ pub fn comparison_step(
                 window.close().map_err(|e| e.to_string())?;
             } else {
                 app.exit(0);
+            }
+            Ok(Value::Null)
+        }
+        // Test-step labels only (no user content), so a stalled run shows where it stopped.
+        "progress" => {
+            if let Some(label) = details.as_ref().and_then(Value::as_str) {
+                eprintln!("TAURI_SMOKE_PROGRESS {}", label.chars().take(120).collect::<String>());
             }
             Ok(Value::Null)
         }
