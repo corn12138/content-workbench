@@ -58,6 +58,8 @@ export function updateReducer(state: UpdateState, event: UpdateEvent): UpdateSta
 export interface UpdateNotice {
   title: string;
   detail: string;
+  /** Fixed guidance shown with the native message; must hold whichever stage failed. */
+  guidance: string;
   retryLabel: string;
   showBackups: boolean;
 }
@@ -65,13 +67,15 @@ export interface UpdateNotice {
 /** Copy for the failure notice; never claims more than the native result proves. */
 export function updateFailureNotice(state: UpdateState): UpdateNotice | null {
   if (state.error === "check")
-    return { title: "检查更新未完成", detail: state.message, retryLabel: "重新检查", showBackups: false };
+    return { title: "检查更新未完成", detail: state.message, guidance: "", retryLabel: "重新检查", showBackups: false };
   if (state.error === "install")
     return {
       title: "升级没有完成",
       detail: state.message,
+      // install_update can fail before or after update_backup::prepare (version, download, signature,
+      // backup or install stage), so whether a backup exists is left to the native message and the folder.
+      guidance: "升级只会在备份资料和旧版应用之后才开始安装。是否已经建立备份以上方说明为准，也可以在“升级备份”中查看。",
       retryLabel: "重试升级",
-      // Upgrade backups are made before installing; they are the recovery path whatever stage failed.
       showBackups: true,
     };
   return null;

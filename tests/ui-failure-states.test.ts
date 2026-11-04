@@ -154,3 +154,29 @@ test("F3: a check does not erase an install failure the user has not dealt with"
   ]);
   assert.equal(state.error, "install");
 });
+
+test("F1: a server failure during token refresh is not presented as a platform rejection", () => {
+  // http.rs maps every non-4xx status (including 5xx from the token refresh x_publish runs first) to this text.
+  const outcome = classifyPublishError("X 服务暂时不可用，请稍后重试。");
+  assert.equal(outcome.kind, "failed");
+  // Every message still classified as a rejection is a fixed 4xx text from http.rs `error()`.
+  for (const message of [
+    "X 授权已失效，请重新连接账号。",
+    "X API 额度不足，请在开发者控制台检查费用与余额。",
+    "X 拒绝访问，请检查应用写入权限、账号和 API 额度。",
+    "X 请求过于频繁，请稍后再试。",
+    "X 未接受请求，请检查应用配置或发布内容。",
+  ])
+    assert.equal(classifyPublishError(message).kind, "rejected", message);
+});
+
+test("F3: install failures before the backup stage are not told a backup was kept", () => {
+  // Messages install_update can return before update_backup::prepare runs.
+  for (const message of ["请先重新检查更新。", "更新正在进行。", "应用正在关闭，请重新打开后升级。", "无法定位应用。"]) {
+    const state = updates([{ type: "installStart" }, { type: "installFailed", message }]);
+    const notice = updateFailureNotice(state)!;
+    assert.equal(notice.detail, message, "native message is shown as-is");
+    assert.doesNotMatch(`${notice.title}${notice.guidance}`, /已保留|没有改动|未改动/, message);
+    assert.ok(notice.showBackups, "the upgrade-backup entry stays available");
+  }
+});

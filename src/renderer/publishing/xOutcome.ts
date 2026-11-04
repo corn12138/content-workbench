@@ -29,15 +29,17 @@ export type XPublishEvent =
   | { type: "clearActionError" }
   | { type: "edited" };
 
-// Fixed messages from src-tauri/src/publishing/http.rs `error()`; x_publish returns them only
-// for definite 4xx answers to the publish request (after marking the journal entry rejected).
+// Fixed 4xx messages from src-tauri/src/publishing/http.rs `error()`. x_publish returns them for a
+// definite 4xx answer to the publish request (journal marked rejected) or to the token refresh that
+// precedes it (nothing sent); either way X refused and nothing was published.
+// "X 服务暂时不可用，请稍后重试。" is deliberately absent: the same text covers 5xx answers to the token
+// refresh, which are server failures rather than refusals, so it is reported neutrally.
 const providerRejections = new Set([
   "X 授权已失效，请重新连接账号。",
   "X API 额度不足，请在开发者控制台检查费用与余额。",
   "X 拒绝访问，请检查应用写入权限、账号和 API 额度。",
   "X 请求过于频繁，请稍后再试。",
   "X 未接受请求，请检查应用配置或发布内容。",
-  "X 服务暂时不可用，请稍后重试。",
 ]);
 
 /** Unknown outcomes are reported with an instruction to verify on X (journal claims, timeouts, incomplete receipts). */

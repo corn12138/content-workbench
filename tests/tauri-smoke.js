@@ -99,6 +99,39 @@
   fill('[aria-label="文章标题"]', "Tauri 本地测试样本 · 一次重构的记录");
   const imageReference = await step("library_fixture");
   fill('[aria-label="文章正文"]', window.__markdownFixture + "\n\n![Fixture](" + imageReference + ' "图片标题")');
+  // Responsive sweep in the real WebView: the layout mode follows the actual width, nothing overflows
+  // horizontally, and the long title and body re-fit their height whenever the column width changes.
+  const layoutFor = (width) => (width >= 1280 ? "wide" : width >= 960 ? "standard" : "compact");
+  const frames = () => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+  const resizeTo = async (width, height) => {
+    await step("resize_to", { width, height });
+    await wait(() => Math.abs(window.innerWidth - width) <= 2, `window width ${width}`);
+    await frames();
+    await wait(() => document.querySelector(".app-shell")?.dataset.layout === layoutFor(window.innerWidth), `layout at ${width}`);
+    assert(document.documentElement.scrollWidth <= window.innerWidth, `Horizontal overflow at ${width}`);
+  };
+  const fits = (selector) => {
+    const node = document.querySelector(selector);
+    return !!node && node.scrollHeight <= node.clientHeight + 1;
+  };
+  const fieldsFit = (label) => wait(() => fits('[aria-label="文章标题"]') && fits('[aria-label="文章正文"]'), `${label}: title and body fully visible`);
+  fill('[aria-label="文章标题"]', "Tauri 本地测试样本 · 一次重构的记录 · " + "长标题需要在窄窗口中完整换行而不被截断，".repeat(3));
+  const widths = [[1440, 900], [1280, 820], [1279, 820], [1180, 800], [1000, 760], [960, 720], [959, 720], [880, 680], [800, 620], [1180, 800]];
+  for (const [width, height] of widths) {
+    await resizeTo(width, height);
+    await wait(editor, `editor at ${width}`);
+    await fieldsFit(`list shown at ${width}`);
+  }
+  document.querySelector('[aria-label="收起稿件列表，专注写作"]').click();
+  await wait(() => !document.querySelector('[aria-label="稿件列表"]'), "draft list collapsed");
+  await fieldsFit("list collapsed");
+  for (const [width, height] of [[1440, 900], [1000, 760], [1180, 800]]) {
+    await resizeTo(width, height);
+    await fieldsFit(`list collapsed at ${width}`);
+  }
+  document.querySelector('[aria-label="显示稿件列表"]').click();
+  await wait(() => document.querySelector('[aria-label="稿件列表"]'), "draft list restored");
+  await fieldsFit("list restored");
   await click("发布记录");
   await wait(() => document.querySelector(".records-page"), "publication records after edit");
   let snapshot = await api.snapshot();
@@ -281,6 +314,11 @@
     await wait(() => outcome() === "failed", "local X failure");
     assert(!document.querySelector(".x-outcome").textContent.includes("拒绝"), "Local failure described as a platform rejection");
     await click("返回编辑");
+    api.xPublish = fail("X 服务暂时不可用，请稍后重试。");
+    await openX();
+    await wait(() => outcome() === "failed", "ambiguous X service failure");
+    assert(!document.querySelector(".x-outcome").textContent.includes("拒绝"), "Server failure described as a platform rejection");
+    await click("返回编辑");
 
     let snapshotFailures = 1;
     api.restoreBackup = counted(async () => true);
@@ -310,6 +348,10 @@
     await wait(() => document.querySelector(".update-failure")?.textContent.includes("升级没有完成"), "install failure");
     const failure = document.querySelector(".update-failure").textContent;
     assert(!/没有改动|未改动/.test(failure) && [...document.querySelectorAll(".update-failure button")].some((b) => b.textContent.includes("查看升级备份")), "Install failure overclaims or hides backups");
+    api.installUpdate = fail("请先重新检查更新。");
+    await click("重试升级");
+    await wait(() => document.querySelector(".update-failure")?.textContent.includes("请先重新检查更新"), "pre-backup install failure");
+    assert(!/已保留|没有改动|未改动/.test(document.querySelector(".update-failure").textContent), "Pre-backup install failure claims a kept backup");
   } finally {
     Object.assign(api, original);
   }
@@ -350,6 +392,17 @@
   await openNotes();
   await wait(() => !document.querySelector("#reading-note").disabled, "note editable");
   fill("#reading-note", "我的收获：先把保存失败和重试做好，再增加自动化。");
+  // Notes survive layout changes: docked beside the list (wide), the list yields (standard), drawer (compact).
+  const noteText = document.querySelector("#reading-note").value;
+  for (const [width, height] of [[1180, 800], [1440, 900], [850, 680]]) {
+    await resizeTo(width, height);
+    await wait(() => document.querySelector("#reading-note")?.value === noteText, `note kept at ${width}`);
+    const layout = layoutFor(window.innerWidth);
+    const listHidden = document.querySelector(".reading-list").hidden;
+    assert(layout === "wide" ? !listHidden : listHidden, `Article list visibility wrong for ${layout} with notes open`);
+    const scroller = document.querySelector(".reader-scroll");
+    assert(scroller && scroller.getBoundingClientRect().width > 0, `Reader hidden at ${width}`);
+  }
   await click("发布记录");
   await wait(() => document.querySelector(".records-page"), "records after note");
   snapshot = await api.snapshot();
@@ -366,7 +419,7 @@
   snapshot = await api.snapshot();
   assert(snapshot.drafts.some((draft) => draft.body.includes("来源：https://example.com/engineering-notes")), "Converted note lost attribution");
   await step("full_backup_roundtrip");
-  await step("complete", { imagePreparationFailureVisible: true, updateSettingsOfflineGuard: true, juejinInlineAnchorAdaptation: true, mermaidDiagramRendered: true, mermaidErrorsVisible: true, remoteImagesOptIn: true, privateRemoteImageBlocked: true, markdownHistoryParity: true, markdownEqualWidthAppearance: true, juejinMeasuredTypography: true, mermaidPixelParity: true, markdownFixtureRendered: true, markdownAnchorsScoped: true, markdownEditorPublishParity: true, markdownNarrowLayout: true, xSetupRendered: true, unauthenticatedPublishBlocked: true, cachedContentSearch: true, storedImageRendered: true, rssContentRendered: true, rssRichLayout: true, rssCodeWhitespace: true, rssRelativeLinks: true, rssAnchors: true, rssImagesOptIn: true, rssContinuousReading: true, publishFocusRestored: true, xOutcomeSurvivesSecondaryFailure: true, xLocalFailureNotRejection: true, restoreRefreshSeparated: true, restoreRetryRefreshOnly: true, updateFailureNeutral: true, updateCheckErrorCleared: true, rssNarrowLayout: true, privateFeedBlocked: true, fullBackupRoundtrip: true, rendererIsolation: true, autosaveOnNavigation: true, markdownSanitized: true, nativeClipboard: clipboardAvailable, nativeClipboardSkipped: !clipboardAvailable, manualPublicationRecorded: true, readingNoteSaved: true, readingToDraft: true, narrowViewport: true });
+  await step("complete", { imagePreparationFailureVisible: true, updateSettingsOfflineGuard: true, juejinInlineAnchorAdaptation: true, mermaidDiagramRendered: true, mermaidErrorsVisible: true, remoteImagesOptIn: true, privateRemoteImageBlocked: true, markdownHistoryParity: true, markdownEqualWidthAppearance: true, juejinMeasuredTypography: true, mermaidPixelParity: true, markdownFixtureRendered: true, markdownAnchorsScoped: true, markdownEditorPublishParity: true, markdownNarrowLayout: true, xSetupRendered: true, unauthenticatedPublishBlocked: true, cachedContentSearch: true, storedImageRendered: true, rssContentRendered: true, rssRichLayout: true, rssCodeWhitespace: true, rssRelativeLinks: true, rssAnchors: true, rssImagesOptIn: true, rssContinuousReading: true, publishFocusRestored: true, xOutcomeSurvivesSecondaryFailure: true, xLocalFailureNotRejection: true, restoreRefreshSeparated: true, restoreRetryRefreshOnly: true, updateFailureNeutral: true, updateCheckErrorCleared: true, updatePreBackupFailureNeutral: true, xServerFailureNotRejection: true, responsiveSweep: true, notesSurviveLayout: true, rssNarrowLayout: true, privateFeedBlocked: true, fullBackupRoundtrip: true, rendererIsolation: true, autosaveOnNavigation: true, markdownSanitized: true, nativeClipboard: clipboardAvailable, nativeClipboardSkipped: !clipboardAvailable, manualPublicationRecorded: true, readingNoteSaved: true, readingToDraft: true, narrowViewport: true });
   // Closing immediately exercises the pending-save barrier instead of waiting for debounce.
   fill('[aria-label="文章标题"]', "Tauri 测试样本 · 关闭时保存");
   await step("close");

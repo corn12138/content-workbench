@@ -153,6 +153,21 @@ pub fn comparison_step(
                 .map_err(|e| e.to_string())?;
             Ok(Value::Null)
         }
+        // Responsive sweep: sizes stay within the window's configured minimum and a laptop-sized maximum.
+        "resize_to" => {
+            let size = |key: &str, min: f64, max: f64| {
+                details
+                    .as_ref()
+                    .and_then(|value| value[key].as_f64())
+                    .filter(|value| (min..=max).contains(value))
+                    .ok_or_else(|| format!("resize_to needs {key} between {min} and {max}"))
+            };
+            let (width, height) = (size("width", 800.0, 1600.0)?, size("height", 620.0, 1000.0)?);
+            window
+                .set_size(tauri::LogicalSize::new(width, height))
+                .map_err(|e| e.to_string())?;
+            Ok(Value::Null)
+        }
         "clipboard" => {
             let snapshot = app.state::<AppState>().lock()?.snapshot()?;
             let expected = snapshot

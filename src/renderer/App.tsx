@@ -37,6 +37,7 @@ export function App() {
   const [busy, setBusy] = useState(false);
   // Set after a restore replaced the data and until the restored data has been read back successfully.
   const [restoredUnread, setRestoredUnread] = useState(false);
+  const [rereading, setRereading] = useState(false);
   const [closing, setClosing] = useState(false);
   const closeSequence = useRef(0);
   const actionPending = useRef(false);
@@ -237,14 +238,20 @@ export function App() {
                 <button
                   type="button"
                   className="button primary"
-                  onClick={() =>
-                    void refresh().then(
-                      () => setRestoredUnread(false),
-                      (error) => notify(errorMessage(error)),
-                    )
-                  }
+                  disabled={rereading}
+                  aria-busy={rereading}
+                  onClick={() => {
+                    // Reads data only; the completed restore is never repeated from here.
+                    setRereading(true);
+                    void refresh()
+                      .then(
+                        () => setRestoredUnread(false),
+                        (error) => notify(errorMessage(error)),
+                      )
+                      .finally(() => setRereading(false));
+                  }}
                 >
-                  重新读取资料
+                  {rereading ? "正在读取…" : "重新读取资料"}
                 </button>
               </div>
             </div>

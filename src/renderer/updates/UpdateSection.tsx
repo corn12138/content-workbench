@@ -76,7 +76,7 @@ export function UpdateSection({
           <div className="notice-body">
             <span className="notice-title">{notice.title}</span>
             <p>{notice.detail}</p>
-            {notice.showBackups && <p>升级前已保留资料和旧版应用的副本，可在“升级备份”中查看或回退。</p>}
+            {notice.guidance && <p>{notice.guidance}</p>}
             <div className="notice-actions">
               <button
                 type="button"
