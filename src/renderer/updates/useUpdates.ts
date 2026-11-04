@@ -24,7 +24,6 @@ export function useUpdates() {
     () => read(preferenceKey) !== "off",
   );
   const [state, dispatch] = useReducer(updateReducer, initialUpdateState);
-  const [progress, setProgress] = useState("");
   const pending = useRef(false);
   const mounted = useRef(true);
   useEffect(() => {
@@ -33,7 +32,10 @@ export function useUpdates() {
       mounted.current = false;
     };
   }, []);
-  useEffect(() => api.onUpdateProgress?.(setProgress), []);
+  useEffect(
+    () => api.onUpdateProgress?.((progress) => dispatch({ type: "installProgress", progress })),
+    [],
+  );
   const check = useCallback(async (quiet = false) => {
     if (!api.checkUpdate || pending.current) return;
     pending.current = true;
@@ -66,7 +68,6 @@ export function useUpdates() {
     if (!state.available || !api.installUpdate || pending.current) return;
     pending.current = true;
     dispatch({ type: "installStart" });
-    setProgress("正在准备升级…");
     try {
       await api.installUpdate(state.available.version);
       if (mounted.current) dispatch({ type: "installSettled" });
@@ -78,8 +79,11 @@ export function useUpdates() {
   };
   return {
     automatic,
-    ...state,
-    progress,
+    state,
+    available: state.available,
+    checking: state.checking,
+    installing: state.install.running,
+    progress: state.install.progress,
     check,
     install,
     setAutomatic(value: boolean) {

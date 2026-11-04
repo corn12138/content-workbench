@@ -1,13 +1,24 @@
+import type { UpdateProgress } from "../../shared/contracts";
+
+export type InstallStage = UpdateProgress["stage"];
+
 /**
- * Update check/install state. A failed install is reported neutrally: the native command only
- * guarantees that a pre-upgrade copy was kept, not that nothing was changed.
+ * Update state. Check results and install results are stored apart: a later successful check (manual
+ * or background) can never overwrite or soften an unresolved installation failure, and the UI only
+ * says a backup exists after the native side reported that stage.
  */
 export interface UpdateState {
   available: { version: string; notes: string } | null;
   checking: boolean;
-  installing: boolean;
-  message: string;
-  error: "check" | "install" | null;
+  check: { message: string; error: string | null };
+  install: {
+    running: boolean;
+    stage: InstallStage | null;
+    progress: string;
+    /** True only after the native "backedUp" event for the current attempt. */
+    backedUp: boolean;
+    error: string | null;
+  };
 }
 
 export type UpdateEvent =
@@ -15,15 +26,15 @@ export type UpdateEvent =
   | { type: "checkSucceeded"; value: { version: string; notes: string } | null }
   | { type: "checkFailed"; message: string; quiet: boolean }
   | { type: "installStart" }
+  | { type: "installProgress"; progress: UpdateProgress }
   | { type: "installFailed"; message: string }
   | { type: "installSettled" };
 
 export const initialUpdateState: UpdateState = {
   available: null,
   checking: false,
-  installing: false,
-  message: "",
-  error: null,
+  check: { message: "", error: null },
+  install: { running: false, stage: null, progress: "", backedUp: false, error: null },
 };
 
 export function updateReducer(state: UpdateState, event: UpdateEvent): UpdateState {
@@ -31,52 +42,97 @@ export function updateReducer(state: UpdateState, event: UpdateEvent): UpdateSta
     case "checkStart":
       return event.quiet
         ? { ...state, checking: true }
-        : { ...state, checking: true, message: "", error: state.error === "install" ? state.error : null };
+        : { ...state, checking: true, check: { message: "", error: null } };
     case "checkSucceeded":
-      // A successful check (manual or background) replaces any earlier check failure.
+      // Replaces an earlier check failure only; the install result is untouched.
       return {
         ...state,
         checking: false,
         available: event.value,
-        message: event.value ? `发现新版本 ${event.value.version}` : "当前已是最新版本",
-        error: state.error === "check" ? null : state.error,
+        check: {
+          message: event.value ? `发现新版本 ${event.value.version}` : "当前已是最新版本",
+          error: null,
+        },
       };
     case "checkFailed":
       // Background failures stay quiet and never overwrite what the user is looking at.
       return event.quiet
         ? { ...state, checking: false }
-        : { ...state, checking: false, message: event.message, error: "check" };
+        : { ...state, checking: false, check: { message: "", error: event.message } };
     case "installStart":
-      return { ...state, installing: true, error: null };
+      return {
+        ...state,
+        install: { running: true, stage: null, progress: "正在准备升级…", backedUp: false, error: null },
+      };
+    case "installProgress":
+      if (!state.install.running) return state;
+      return {
+        ...state,
+        install: {
+          ...state.install,
+          stage: event.progress.stage,
+          progress: event.progress.message,
+          backedUp: state.install.backedUp || event.progress.stage === "backedUp",
+        },
+      };
     case "installFailed":
-      return { ...state, installing: false, message: event.message, error: "install" };
+      return { ...state, install: { ...state.install, running: false, error: event.message } };
     case "installSettled":
-      return { ...state, installing: false };
+      return { ...state, install: { ...state.install, running: false } };
   }
 }
 
+const stageLabel: Record<InstallStage, string> = {
+  download: "下载更新包",
+  verify: "校验签名",
+  backup: "备份资料和旧版应用",
+  backedUp: "安装前（备份已完成）",
+  install: "安装",
+  restart: "重新打开",
+  unknown: "升级",
+};
+
 export interface UpdateNotice {
+  kind: "check" | "install";
   title: string;
   detail: string;
-  /** Fixed guidance shown with the native message; must hold whichever stage failed. */
+  /** Fixed guidance; states only what the received stage events prove. */
   guidance: string;
   retryLabel: string;
   showBackups: boolean;
 }
 
-/** Copy for the failure notice; never claims more than the native result proves. */
-export function updateFailureNotice(state: UpdateState): UpdateNotice | null {
-  if (state.error === "check")
-    return { title: "检查更新未完成", detail: state.message, guidance: "", retryLabel: "重新检查", showBackups: false };
-  if (state.error === "install")
-    return {
-      title: "升级没有完成",
-      detail: state.message,
-      // install_update can fail before or after update_backup::prepare (version, download, signature,
-      // backup or install stage), so whether a backup exists is left to the native message and the folder.
-      guidance: "升级只会在备份资料和旧版应用之后才开始安装。是否已经建立备份以上方说明为准，也可以在“升级备份”中查看。",
-      retryLabel: "重试升级",
-      showBackups: true,
-    };
-  return null;
+export function installFailureNotice(state: UpdateState): UpdateNotice | null {
+  const { install } = state;
+  if (!install.error) return null;
+  const reached = install.stage ? `停在“${stageLabel[install.stage]}”阶段。` : "在开始下载前停止。";
+  return {
+    kind: "install",
+    title: "升级没有完成",
+    detail: install.error,
+    guidance: install.backedUp
+      ? `${reached}安装前已建立升级备份，升级前的资料和旧版应用保存在“升级备份”中。`
+      : `${reached}没有收到备份完成的结果；是否有备份以“升级备份”文件夹为准。`,
+    retryLabel: "重试升级",
+    showBackups: true,
+  };
+}
+
+export function checkFailureNotice(state: UpdateState): UpdateNotice | null {
+  if (!state.check.error) return null;
+  return {
+    kind: "check",
+    title: "检查更新未完成",
+    detail: state.check.error,
+    guidance: "",
+    retryLabel: "重新检查",
+    showBackups: false,
+  };
+}
+
+/** Notices to show, install first; both can be present at once and never merge. */
+export function updateNotices(state: UpdateState): UpdateNotice[] {
+  return [installFailureNotice(state), checkFailureNotice(state)].filter(
+    (notice): notice is UpdateNotice => !!notice,
+  );
 }

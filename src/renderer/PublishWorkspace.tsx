@@ -1,9 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Check, ChevronDown, ChevronLeft, Copy, ExternalLink, Eye, Info, TriangleAlert } from "lucide-react";
-import type { Draft, XAccount } from "../shared/contracts";
+import type { Draft, Platform, Preparation, XAccount } from "../shared/contracts";
 import { api, errorMessage } from "./api";
 import { XPublish } from "./publishing/XPublish";
-import { initialXText, sensitiveText } from "./publishing/text";
+import { sensitiveText } from "./publishing/text";
+import { isStale, usePreparation } from "./publishing/usePreparation";
+import { XWebAssist } from "./publishing/XWebAssist";
 import { prepareJuejin } from "./publishing/juejin";
 import { JuejinImages, type ImageState } from "./publishing/JuejinImages";
 import { RecordLink } from "./publishing/RecordLink";
@@ -22,6 +24,8 @@ export function PublishWorkspace({
   onBusy,
   onViewRecords,
   notify,
+  preparations,
+  registerFlush,
 }: {
   draft: Draft;
   onClose: () => void;
@@ -30,20 +34,32 @@ export function PublishWorkspace({
   onBusy: (busy: boolean) => void;
   onViewRecords: () => void;
   notify: (message: string) => void;
+  /** Saved preparation for this draft, if the user left one unfinished. */
+  preparations: Preparation[];
+  registerFlush: (flush: () => Promise<void>) => void;
 }) {
   const [draft, setDraft] = useState(initialDraft);
+  const preparation = usePreparation(draft, preparations, registerFlush);
   const prepared = useMemo(() => prepareJuejin(draft.body), [draft.body]);
   const heading = useRef<HTMLHeadingElement>(null);
   const [busy, setBusyState] = useState(false);
   const [error, setError] = useState("");
   const [copied, setCopied] = useState(false);
-  const [platform, setPlatform] = useState<"juejin" | "x">("juejin");
+  // Resume where the user left off: the most recently touched platform opens first.
+  const [platform, setPlatform] = useState<Platform>(() => preparations[0]?.platform ?? "juejin");
   const [images, setImages] = useState<ImageState>("idle");
-  const [xText, setXText] = useState(() => initialXText(draft.title, draft.body));
+  const xText = preparation.local.x.xText;
+  const setXText = (value: string) => preparation.update("x", { xText: value });
   const [xAccount, setXAccount] = useState<XAccount | null | undefined>(undefined);
   const sensitive = sensitiveText(`${draft.title}\n${draft.body}`);
   const [acknowledged, setAcknowledged] = useState(false);
-  const canCopy = !sensitive || acknowledged;
+  const stale = isStale(preparation.local[platform], draft);
+  const canCopy = (!sensitive || acknowledged) && !isStale(preparation.local.juejin, draft);
+  const xMode = preparation.local.x.xMode ?? (xAccount?.connected ? "api" : "web");
+  const recorded = async (platformDone: Platform) => {
+    await preparation.finish(platformDone);
+    await onRecorded();
+  };
   const setBusy = (value: boolean) => {
     setBusyState(value);
     onBusy(value);
@@ -132,6 +148,19 @@ export function PublishWorkspace({
           </div>
         </div>
         <aside className="publish-rail" aria-label="发布设置">
+          {preparation.error && (
+            <div className="notice danger" role="alert">
+              <TriangleAlert size={15} aria-hidden="true" />
+              <div className="notice-body">
+                <p>发布准备未能保存：{preparation.error} 输入仍保留，离开前会再次尝试。</p>
+                <div className="notice-actions">
+                  <button type="button" className="button" onClick={() => void preparation.flush().catch(() => {})}>
+                    重试保存
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
           <div className="platform-tiles" role="group" aria-label="选择发布平台">
             <button
               type="button"
@@ -149,18 +178,33 @@ export function PublishWorkspace({
               className="platform-tile"
               data-platform="x"
               aria-pressed={platform === "x"}
-              disabled={busy || !api.xPublish}
+              disabled={busy}
               onClick={() => setPlatform("x")}
             >
-              <strong>
-                X <span className="badge warning">实验性</span>
-              </strong>
-              <span className={xAccount?.connected ? "ok" : "attention"}>
-                {api.xPublish ? xStatus : "请使用 Tauri 版"}
+              <strong>X</strong>
+              <span className={xAccount?.connected ? "ok" : undefined}>
+                {xAccount?.connected ? `网页辅助 · API ${xStatus}` : "网页辅助 · 无需开发者应用"}
               </span>
             </button>
           </div>
 
+          {stale && (
+            <div className="notice warning prep-stale" role="alert">
+              <TriangleAlert size={15} aria-hidden="true" />
+              <div className="notice-body">
+                <span className="notice-title">原稿在准备后修改过，请重新核对</span>
+                <p>
+                  上次准备基于版本 {preparation.local[platform].revision}，现在是版本 {draft.revision}。
+                  {platform === "x" ? "你编辑的短帖" : "待记录的链接"}已保留；核对左侧预览后再继续。
+                </p>
+                <div className="notice-actions">
+                  <button type="button" className="button" disabled={busy} onClick={() => preparation.confirmCurrent(platform)}>
+                    已核对，按当前版本继续
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
           {platform === "juejin" ? (
             <>
               <div className="account-card">
@@ -218,6 +262,10 @@ export function PublishWorkspace({
                         文中有 {prepared.images} 张图片。复制正文不会上传图片，需要按编号在掘金对应位置上传。
                       </p>
                       <JuejinImages
+                        saved={(() => {
+                          const saved = preparations.find((item) => item.platform === "juejin");
+                          return saved ? { images: saved.images, revision: saved.imagesRevision } : null;
+                        })()}
                         draft={draft}
                         count={prepared.images}
                         busy={busy}
@@ -227,6 +275,7 @@ export function PublishWorkspace({
                           setDraft(next);
                           onPrepared(next);
                           setCopied(false);
+                          void onRecorded().catch(() => {});
                         }}
                       />
                     </div>
@@ -285,34 +334,75 @@ export function PublishWorkspace({
                     <RecordLink
                       platform="juejin"
                       draft={draft}
-                      busy={busy}
+                      busy={busy || isStale(preparation.local.juejin, draft)}
                       primary={copied}
                       onBusy={setBusy}
-                      onRecorded={onRecorded}
+                      onRecorded={() => recorded("juejin")}
                       onViewRecords={onViewRecords}
+                      value={preparation.local.juejin.pendingUrl}
+                      onChange={(url) => preparation.update("juejin", { pendingUrl: url })}
                     />
                   </div>
                 </li>
               </ol>
             </>
-          ) : api.xPublish ? (
-            <XPublish
-              draft={draft}
-              text={xText}
-              setText={setXText}
-              onAccount={(next) => setXAccount(next)}
-              onRecorded={onRecorded}
-              onBusy={setBusy}
-              onViewRecords={onViewRecords}
-              notify={notify}
-            />
           ) : (
-            <p className="field-help">X 授权与发布请使用 Tauri 版。</p>
+            <>
+              <div className="segmented full" role="group" aria-label="X 发布方式">
+                <button
+                  type="button"
+                  aria-pressed={xMode === "web"}
+                  disabled={busy}
+                  onClick={() => preparation.setMode("x", "web")}
+                >
+                  网页辅助发布
+                </button>
+                <button
+                  type="button"
+                  aria-pressed={xMode === "api"}
+                  disabled={busy || !api.xPublish}
+                  onClick={() => preparation.setMode("x", "api")}
+                >
+                  官方 API（实验性）
+                </button>
+              </div>
+              {xMode === "web" ? (
+                <XWebAssist
+                  draft={draft}
+                  text={xText}
+                  setText={setXText}
+                  locked={stale}
+                  busy={busy}
+                  onBusy={setBusy}
+                  pendingUrl={preparation.local.x.pendingUrl}
+                  setPendingUrl={(url) => preparation.update("x", { pendingUrl: url })}
+                  onRecorded={() => recorded("x")}
+                  onViewRecords={onViewRecords}
+                />
+              ) : api.xPublish ? (
+                <XPublish
+                  draft={draft}
+                  text={xText}
+                  setText={setXText}
+                  locked={stale}
+                  onAccount={(next) => setXAccount(next)}
+                  onRecorded={onRecorded}
+                  onPublished={() => void preparation.finish("x")}
+                  onBusy={setBusy}
+                  onViewRecords={onViewRecords}
+                  notify={notify}
+                />
+              ) : (
+                <p className="field-help">官方 API 发布请使用 Tauri 版；网页辅助发布可直接使用。</p>
+              )}
+            </>
           )}
           <p className="foot-note">
             {platform === "juejin"
               ? "工作台不会代你在掘金发布；只有你粘贴的链接会成为发布记录。"
-              : "授权凭证保存在系统钥匙串，不进入文章、资料备份或开源代码。"}
+              : xMode === "web"
+                ? "网页辅助发布不读取 X 的登录状态或 Cookie，也不会代你发帖；只有你粘贴的链接会成为发布记录（人工确认）。"
+                : "授权凭证保存在系统钥匙串，不进入文章、资料备份或开源代码。"}
           </p>
         </aside>
       </div>

@@ -5,6 +5,7 @@ import { api, errorMessage } from "../api";
 import { XConnection } from "./XConnection";
 import { checkXText, sensitiveText } from "./text";
 import { RecordLink } from "./RecordLink";
+import { XTextField } from "./XTextField";
 import { canSend, initialXPublishState, textLocked, xPublishReducer } from "./xOutcome";
 
 export function XPublish({
@@ -16,6 +17,8 @@ export function XPublish({
   onBusy,
   onViewRecords,
   notify,
+  locked: stale = false,
+  onPublished,
 }: {
   draft: Draft;
   text: string;
@@ -25,6 +28,10 @@ export function XPublish({
   onBusy: (busy: boolean) => void;
   onViewRecords: () => void;
   notify: (message: string) => void;
+  /** True while the preparation must be re-checked against the current draft. */
+  locked?: boolean;
+  /** Called after X returned a receipt, so the finished preparation can be cleared. */
+  onPublished?: () => void;
 }) {
   const [account, setAccount] = useState<XAccount | null>(null);
   const [acknowledged, setAcknowledged] = useState(false);
@@ -40,7 +47,7 @@ export function XPublish({
   const check = checkXText(text);
   const sensitive = sensitiveText(text);
   const canPublish =
-    !!account?.connected && check.valid && (!sensitive || acknowledged) && canSend(outcome);
+    !!account?.connected && !stale && check.valid && (!sensitive || acknowledged) && canSend(outcome);
 
   useEffect(() => {
     if (confirming) dialog.current?.showModal();
@@ -78,6 +85,7 @@ export function XPublish({
         expectedUsername: account!.username!,
       });
       dispatch({ type: "published", receipt: result });
+      onPublished?.();
       try {
         await onRecorded();
       } catch {
@@ -103,37 +111,16 @@ export function XPublish({
       />
       {account?.connected && (
         <>
-          <div className="field">
-            <label className="field-label" htmlFor="x-post-text">
-              短帖内容
-            </label>
-            <textarea
-              id="x-post-text"
-              className="input x-post-text"
-              value={text}
-              readOnly={textLocked(outcome)}
-              maxLength={10000}
-              aria-describedby="x-post-count x-post-help"
-              onChange={(e) => {
-                setText(e.target.value);
-                setAcknowledged(false);
-                dispatch({ type: "edited" });
-              }}
-            />
-            <p id="x-post-count" className={check.length > 280 ? "x-count over" : "x-count"}>
-              <span className="num">{check.length} / 280</span>
-              <span>中文通常计 2，链接计 23</span>
-            </p>
-            <span className="field-help" id="x-post-help">
-              长文默认只带入标题，请补充简介或文章链接。仅发布上方文字，不自动拆分或上传图片，也不改变原稿。
-            </span>
-          </div>
-          {check.localAsset && (
-            <p className="field-error" role="alert">
-              <CircleAlert size={13} aria-hidden="true" />
-              请移除本机图片和文件路径后再发布。
-            </p>
-          )}
+          <XTextField
+            text={text}
+            readOnly={textLocked(outcome)}
+            setText={(value) => {
+              setText(value);
+              setAcknowledged(false);
+              dispatch({ type: "edited" });
+            }}
+            help="长文默认只带入标题，请补充简介或文章链接。仅发布上方文字，不自动拆分或上传图片，也不改变原稿。"
+          />
           {sensitive && (
             <label className="notice warning check">
               <input

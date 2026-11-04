@@ -23,6 +23,7 @@ const api: WorkbenchAPI = {
   readingToDraft: (id) => call("readingToDraft", id),
   copyText: (text) => call("copyText", text),
   exportDraft: (id) => call("exportDraft", id),
+  exportCurrent: (input) => call("exportCurrent", input),
   openExternal: (url) => call("openExternal", url),
   backup: () => call("backup"),
   restoreBackup: () => call("restoreBackup"),

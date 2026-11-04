@@ -21,6 +21,8 @@ import { api, errorMessage } from "./api";
 import { Markdown } from "./Markdown";
 import { useDraftEditor } from "./useDraftEditor";
 import { updatedLabel } from "./draftText";
+import { shortcutFor, shortcutLabel } from "./shortcuts";
+import { exportOutcome } from "./exportOutcome";
 
 interface Props {
   draft: Draft;
@@ -35,6 +37,11 @@ interface Props {
   onToggleList: () => void;
   onBack: () => void;
   publishButton: React.RefObject<HTMLButtonElement | null>;
+  /** True only right after the explicit "新建稿件" action. */
+  focusTitle?: boolean;
+  onTitleFocused?: () => void;
+  /** An unfinished publishing preparation exists for this draft. */
+  preparing?: boolean;
 }
 
 /**
@@ -88,6 +95,9 @@ export function DraftEditor({
   onToggleList,
   onBack,
   publishButton,
+  focusTitle,
+  onTitleFocused,
+  preparing,
 }: Props) {
   const editor = useDraftEditor(draft, onSaved, registerFlush);
   const [preview, setPreview] = useState(false);
@@ -108,9 +118,37 @@ export function DraftEditor({
     });
   }, [registerFlush, editor.flush]);
   useEffect(() => {
-    // A brand-new draft starts with its title, matching where the user expects to type first.
-    if (!draft.title && !draft.body) titleField.current?.focus();
-  }, [draft.id]); // eslint-disable-line react-hooks/exhaustive-deps
+    // Only an explicit new-draft action moves focus; reopening, restoring or re-rendering never does.
+    if (!focusTitle) return;
+    const field = titleField.current;
+    if (field) {
+      field.focus();
+      // New drafts are stored as "未命名稿件"; selecting it lets the first keystroke replace it.
+      field.select();
+    }
+    onTitleFocused?.();
+  }, [focusTitle]); // eslint-disable-line react-hooks/exhaustive-deps
+  const [exporting, setExporting] = useState(false);
+  /** Exports exactly what is in the editor now, even if the last save failed. */
+  const exportCurrent = async () => {
+    if (exporting) return;
+    setExporting(true);
+    const fields = editor.latest();
+    try {
+      if (api.exportCurrent) {
+        const receipt = await api.exportCurrent(fields);
+        if (receipt) notify(exportOutcome(receipt, !!editor.error));
+      } else {
+        // Fallback for builds without the snapshot command: save first so the exported copy is current.
+        await editor.flush();
+        if (await api.exportDraft(draft.id)) notify("已导出 Markdown");
+      }
+    } catch (error) {
+      notify(`未能导出：${errorMessage(error)} 编辑区内容仍保留。`);
+    } finally {
+      setExporting(false);
+    }
+  };
   const insertImage = () => {
     if (!api.insertImage || imagePending.current) return;
     const start = textarea.current?.selectionStart;
@@ -166,7 +204,7 @@ export function DraftEditor({
       className="detail-pane draft-editor"
       aria-label="稿件编辑"
       onKeyDown={(event) => {
-        if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "e") {
+        if (shortcutFor(event.nativeEvent, navigator.platform) === "togglePreview") {
           event.preventDefault();
           setPreview((value) => !value);
         } else if (event.key === "Escape" && history) {
@@ -192,7 +230,7 @@ export function DraftEditor({
             {listCollapsed ? <PanelLeftOpen size={17} /> : <PanelLeftClose size={17} />}
           </button>
         )}
-        <div className="segmented" role="group" aria-label="编辑或预览（⌘E 切换）">
+        <div className="segmented" role="group" aria-label={`编辑或预览（${shortcutLabel(navigator.platform, "E")} 切换）`}>
           <button type="button" aria-pressed={!preview} onClick={() => setPreview(false)}>
             <PencilLine size={13} aria-hidden="true" />
             编辑
@@ -262,20 +300,14 @@ export function DraftEditor({
             <button
               type="button"
               role="menuitem"
+              disabled={exporting}
               onClick={() => {
                 closeMenu();
-                void run(async () => {
-                  if (await api.exportDraft(draft.id))
-                    notify(
-                      api.insertImage
-                        ? "文章已导出，已保存的图片会一起带走"
-                        : "已导出 Markdown",
-                    );
-                });
+                void exportCurrent();
               }}
             >
               <Download size={15} aria-hidden="true" />
-              导出 Markdown
+              {api.insertImage ? "导出（含图片）" : "导出 Markdown"}
             </button>
             <button
               type="button"
@@ -299,7 +331,7 @@ export function DraftEditor({
           onClick={() => void run(async () => onPublish(editor.current()))}
         >
           <Send size={14} aria-hidden="true" />
-          准备发布
+          {preparing ? "继续准备发布" : "准备发布"}
         </button>
       </header>
       {editor.error && (
@@ -318,6 +350,16 @@ export function DraftEditor({
                 onClick={() => void editor.flush().catch(() => undefined)}
               >
                 重试保存
+              </button>
+              <button
+                type="button"
+                className="button quiet"
+                disabled={exporting}
+                aria-busy={exporting}
+                onClick={() => void exportCurrent()}
+              >
+                <Download size={14} aria-hidden="true" />
+                {exporting ? "正在另存…" : "另存当前内容"}
               </button>
             </div>
           </div>

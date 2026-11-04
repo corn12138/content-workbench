@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { shortcutFor } from "./shortcuts";
 import { X } from "lucide-react";
 import { LayoutContext, useShellLayout } from "./layout";
-import type { Draft, Snapshot } from "../shared/contracts";
+import type { Draft, Snapshot, Workflow } from "../shared/contracts";
 import { api, errorMessage } from "./api";
 import { DraftEditor } from "./DraftEditor";
 import { DraftsView } from "./DraftsView";
@@ -14,6 +15,11 @@ import { useUpdates } from "./updates/useUpdates";
 import { UpdateProgress } from "./updates/UpdateSection";
 
 const empty: Snapshot = { drafts: [], publications: [], readings: [] };
+const emptyWorkflow: Workflow = { preparations: [], sources: [], feedback: [] };
+export interface NoticeAction {
+  label: string;
+  run: () => void;
+}
 const noPendingEdits = async () => {};
 
 export function App() {
@@ -26,7 +32,10 @@ export function App() {
   const [editorKey, setEditorKey] = useState(0);
   const [query, setQuery] = useState("");
   const [showArchived, setShowArchived] = useState(false);
-  const [notice, setNotice] = useState("");
+  const [notice, setNotice] = useState<{ text: string; action?: NoticeAction }>({ text: "" });
+  const [workflow, setWorkflow] = useState<Workflow>(emptyWorkflow);
+  // Set only by the explicit "新建" action; opening an old untitled draft never steals focus.
+  const [freshDraft, setFreshDraft] = useState<string | null>(null);
   const [publishing, setPublishing] = useState<Draft | null>(null);
   const [publishBusy, setPublishBusy] = useState(false);
   const [listCollapsed, setListCollapsed] = useState(false);
@@ -42,16 +51,25 @@ export function App() {
   const closeSequence = useRef(0);
   const actionPending = useRef(false);
   const flush = useRef<() => Promise<void>>(noPendingEdits);
-  const notify = useCallback((message: string) => setNotice(message), []);
+  const notify = useCallback(
+    (message: string, action?: NoticeAction) => setNotice({ text: message, action }),
+    [],
+  );
   const registerFlush = useCallback((handler: () => Promise<void>) => {
     flush.current = handler;
   }, []);
   const refreshSequence = useRef(0);
   const refresh = useCallback(async () => {
     const sequence = ++refreshSequence.current;
-    const next = await api.snapshot();
+    const [next, nextWorkflow] = await Promise.all([
+      api.snapshot(),
+      api.workflow ? api.workflow() : Promise.resolve(emptyWorkflow),
+    ]);
     // A slower list read cannot replace the newer snapshot loaded after a save or restore.
-    if (sequence === refreshSequence.current) setData(next);
+    if (sequence === refreshSequence.current) {
+      setData(next);
+      setWorkflow(nextWorkflow);
+    }
   }, []);
   const load = useCallback(async () => {
     setLoadError("");
@@ -122,11 +140,13 @@ export function App() {
       setView(next);
     });
   };
-  const closePublishing = () => {
-    setPublishing(null);
-    // The editor remounts behind the workspace; return focus to the action that opened it.
-    requestAnimationFrame(() => publishButton.current?.focus());
-  };
+  const closePublishing = () =>
+    // Joins the barrier so an unsaved preparation (edited post, pending link) is written first.
+    void action(async () => {
+      setPublishing(null);
+      // The editor remounts behind the workspace; return focus to the action that opened it.
+      requestAnimationFrame(() => publishButton.current?.focus());
+    });
   const chooseDraft = async (draft: Draft) => {
     await refresh();
     resetEditor();
@@ -139,9 +159,9 @@ export function App() {
   };
   const createDraft = () =>
     void action(async () => {
-      await chooseDraft(
-        await api.saveDraft({ title: "", body: "", project: "" }),
-      );
+      const draft = await api.saveDraft({ title: "", body: "", project: "" });
+      setFreshDraft(draft.id);
+      await chooseDraft(draft);
     });
   const importDraft = () =>
     void action(async () => {
@@ -187,9 +207,40 @@ export function App() {
       resetEditor();
       setSelected(null);
       await refresh();
-      notify("已归档，可从“已归档”找回");
+      // Undo only flips the archive flag back; history and publication records were never touched.
+      notify("已归档。历史版本和发布记录都保留，也可以在“已归档”中找回。", {
+        label: "撤销",
+        run: () =>
+          void action(async () => {
+            const draft = data.drafts.find((item) => item.id === id) ?? (await api.snapshot()).drafts.find((item) => item.id === id);
+            if (!draft) throw new Error("这篇稿件已不存在。");
+            await api.archiveDraft(id, false);
+            await chooseDraft({ ...draft, archived: false });
+            notify("已撤销归档");
+          }),
+      });
     });
   const active = data.drafts.find((item) => item.id === selected);
+  const shortcutState = useRef({ blocked: true, createDraft, importDraft });
+  shortcutState.current = {
+    blocked: busy || publishBusy || loading || !!loadError || restoredUnread || closing,
+    createDraft,
+    importDraft,
+  };
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      const shortcut = shortcutFor(event, navigator.platform);
+      if (!shortcut || shortcut === "togglePreview") return;
+      event.preventDefault();
+      const current = shortcutState.current;
+      // Never start another operation behind a modal (X confirmation, update progress) or a busy action.
+      if (current.blocked || actionPending.current || document.querySelector("dialog[open]")) return;
+      if (shortcut === "newDraft") current.createDraft();
+      else current.importDraft();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
 
   const compact = layout === "compact";
   const unread = data.readings.filter((item) => !item.read).length;
@@ -257,7 +308,10 @@ export function App() {
             </div>
           ) : view === "drafts" && publishing ? (
             <PublishWorkspace
+              key={publishing.id}
               draft={publishing}
+              preparations={workflow.preparations.filter((item) => item.draftId === publishing.id)}
+              registerFlush={registerFlush}
               onClose={closePublishing}
               onRecorded={refresh}
               onBusy={setPublishBusy}
@@ -294,6 +348,9 @@ export function App() {
                 <DraftEditor
                   key={active.id + ":" + editorKey}
                   draft={active}
+                  focusTitle={freshDraft === active.id}
+                  onTitleFocused={() => setFreshDraft(null)}
+                  preparing={workflow.preparations.some((item) => item.draftId === active.id)}
                   onSaved={onSaved}
                   onPublish={setPublishing}
                   registerFlush={registerFlush}
@@ -342,14 +399,27 @@ export function App() {
           )}
         </main>
         <UpdateProgress updates={updates} />
-        {notice && (
+        {notice.text && (
           <div className="toast" role="status">
-            <span>{notice}</span>
+            <span>{notice.text}</span>
+            {notice.action && (
+              <button
+                type="button"
+                className="button small toast-action"
+                onClick={() => {
+                  const run = notice.action!.run;
+                  setNotice({ text: "" });
+                  run();
+                }}
+              >
+                {notice.action.label}
+              </button>
+            )}
             <button
               type="button"
               className="icon-button"
               aria-label="关闭提示"
-              onClick={() => setNotice("")}
+              onClick={() => setNotice({ text: "" })}
             >
               <X size={15} />
             </button>

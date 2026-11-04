@@ -1422,3 +1422,12 @@ textarea::placeholder {
 .release-notes {
   white-space: pre-wrap;
 }
+.toast .toast-action {
+  flex-shrink: 0;
+  border-color: rgba(255, 255, 255, 0.35);
+  background: transparent;
+  color: #f6f4ef;
+}
+.toast .toast-action:hover {
+  background: rgba(255, 255, 255, 0.1);
+}

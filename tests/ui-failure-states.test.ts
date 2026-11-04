@@ -10,7 +10,8 @@ import {
   type XPublishState,
 } from "../src/renderer/publishing/xOutcome";
 import { reloadAfterRestore, runRestore } from "../src/renderer/restoreFlow";
-import { initialUpdateState, updateFailureNotice, updateReducer, type UpdateEvent } from "../src/renderer/updates/updateState";
+import { initialUpdateState, updateNotices, updateReducer, type UpdateEvent, type UpdateState } from "../src/renderer/updates/updateState";
+const updateFailureNotice = (state: UpdateState) => updateNotices(state)[0] ?? null;
 
 const run = (events: XPublishEvent[], from: XPublishState = initialXPublishState) =>
   events.reduce(xPublishReducer, from);
@@ -122,7 +123,7 @@ test("F3: install failure without a no-change guarantee is reported neutrally", 
   assert.equal(notice.title, "升级没有完成");
   assert.ok(notice.showBackups);
   assert.doesNotMatch(`${notice.title}${notice.detail}`, /没有改动|未改动/);
-  assert.equal(state.installing, false);
+  assert.equal(state.install.running, false);
 });
 
 test("F3: a later successful check (background or manual) clears a stale check failure", () => {
@@ -136,13 +137,13 @@ test("F3: a later successful check (background or manual) clears a stale check f
     { type: "checkSucceeded", value: null },
   ] satisfies UpdateEvent[];
   const recovered = background.reduce(updateReducer, failed);
-  assert.equal(recovered.error, null);
+  assert.equal(recovered.check.error, null);
   assert.equal(updateFailureNotice(recovered), null);
-  assert.equal(recovered.message, "当前已是最新版本");
+  assert.equal(recovered.check.message, "当前已是最新版本");
   // A quiet background failure never replaces what the user sees.
   const quietFail = updateReducer(updateReducer(recovered, { type: "checkStart", quiet: true }), { type: "checkFailed", message: "x", quiet: true });
-  assert.equal(quietFail.error, null);
-  assert.equal(quietFail.message, "当前已是最新版本");
+  assert.equal(quietFail.check.error, null);
+  assert.equal(quietFail.check.message, "当前已是最新版本");
 });
 
 test("F3: a check does not erase an install failure the user has not dealt with", () => {
@@ -152,7 +153,50 @@ test("F3: a check does not erase an install failure the user has not dealt with"
     { type: "checkStart", quiet: true },
     { type: "checkSucceeded", value: { version: "0.5.0", notes: "" } },
   ]);
-  assert.equal(state.error, "install");
+  assert.equal(state.install.error, "安装未完成");
+});
+
+test("E4: install failure keeps its own detail after a successful \"up to date\" check", () => {
+  const state = updates([
+    { type: "checkSucceeded", value: { version: "0.5.0", notes: "" } },
+    { type: "installStart" },
+    { type: "installProgress", progress: { stage: "download", message: "正在下载更新…" } },
+    { type: "installFailed", message: "更新下载失败，请稍后重试。" },
+    { type: "checkStart", quiet: true },
+    { type: "checkSucceeded", value: null },
+  ]);
+  const [install, ...rest] = updateNotices(state);
+  assert.equal(install.kind, "install");
+  assert.equal(install.detail, "更新下载失败，请稍后重试。");
+  assert.doesNotMatch(install.detail + install.guidance, /最新版本/);
+  assert.match(install.guidance, /下载更新包/);
+  assert.match(install.guidance, /没有收到备份完成的结果/);
+  assert.equal(rest.length, 0);
+  assert.equal(state.check.message, "当前已是最新版本");
+});
+
+test("E5: a backup is only mentioned after the native backedUp stage", () => {
+  const before = updates([
+    { type: "installStart" },
+    { type: "installProgress", progress: { stage: "backup", message: "正在备份资料和旧版应用…" } },
+    { type: "installFailed", message: "无法建立升级备份，已取消升级。" },
+  ]);
+  assert.equal(before.install.backedUp, false);
+  assert.doesNotMatch(updateNotices(before)[0].guidance, /已建立升级备份/);
+  const after = updates([
+    { type: "installStart" },
+    { type: "installProgress", progress: { stage: "backedUp", message: "已建立升级备份。" } },
+    { type: "installProgress", progress: { stage: "install", message: "正在安装…" } },
+    { type: "installFailed", message: "安装未完成，升级前副本已保留；请查看升级备份。" },
+  ]);
+  assert.equal(after.install.backedUp, true);
+  assert.match(updateNotices(after)[0].guidance, /安装前已建立升级备份/);
+  // Progress after the attempt ended is ignored, and a retry starts from a clean slate.
+  const late = updateReducer(after, { type: "installProgress", progress: { stage: "backedUp", message: "" } });
+  assert.equal(late, after);
+  const retry = updateReducer(after, { type: "installStart" });
+  assert.equal(retry.install.backedUp, false);
+  assert.equal(retry.install.error, null);
 });
 
 test("F1: a server failure during token refresh is not presented as a platform rejection", () => {

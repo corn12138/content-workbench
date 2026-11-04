@@ -94,6 +94,7 @@ pub async fn prepare_images(
             .map(|(k, v)| (k.clone(), v.clone()))
             .collect();
         let draft = if remote.is_empty() { original.clone() } else { store.save_prepared_images(&original, &remote)? };
+        if draft.revision != original.revision { store.follow_image_revision(original.revision, &draft)?; }
         let results: Vec<PreparedImage> = images
             .iter()
             .enumerate()

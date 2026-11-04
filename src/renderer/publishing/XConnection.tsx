@@ -76,6 +76,27 @@ export function XConnection({
       }
     }
   };
+  const save = async () => {
+    if (locked.current || !api.xSaveClientId) return;
+    locked.current = true;
+    working(true);
+    setMessage("");
+    try {
+      const next = await api.xSaveClientId(clientId.trim());
+      if (active.current) {
+        setAccount(next);
+        setClientId(next.clientId);
+        handler.current.onAccount?.(next);
+        setMessage(next.clientId ? "已保存 Client ID。准备好后点“连接 X”授权。" : "已清除保存的 Client ID。");
+        if (next.clientId) setSetupOpen(false);
+      }
+    } catch (error) {
+      if (active.current) setMessage(errorMessage(error));
+    } finally {
+      locked.current = false;
+      if (active.current) working(false);
+    }
+  };
   const disconnect = async () => {
     if (locked.current) return;
     locked.current = true;
@@ -97,8 +118,11 @@ export function XConnection({
   };
   const open = (url: string) =>
     void api.openExternal(url).catch((error) => setMessage(errorMessage(error)));
-  const connected = !!account?.connected;
+  const connected = !!account?.connected && !account?.needsReconnect;
+  const expired = !!account?.connected && !!account?.needsReconnect;
   const configured = !!account?.clientId;
+  const source = account?.clientSource;
+  const edited = clientId.trim() !== (account?.clientId ?? "");
   const callback = account?.callback || fallbackCallback;
   return (
     <div className="x-connection">
@@ -112,30 +136,36 @@ export function XConnection({
               ? "正在读取连接状态…"
               : connected
                 ? `@${account!.username}`
-                : authorizing
-                  ? "等待浏览器授权…"
-                  : configured
-                    ? "未连接"
-                    : "还没有连接 X"}
+                : expired
+                  ? `@${account!.username} · 授权已过期`
+                  : authorizing
+                    ? "等待浏览器授权…"
+                    : configured
+                      ? "未连接"
+                      : "还没有连接 X"}
           </strong>
           <span>
             {connected
               ? "凭证保存在系统钥匙串"
-              : authorizing
-                ? "已在系统浏览器打开 X 授权页，完成后会自动返回。"
-                : configured
-                  ? "已配置应用。通过系统浏览器授权，无需提供账号密码。"
-                  : "首次连接需要在 X 开发者后台创建应用并填写公开的 Client ID。"}
+              : expired
+                ? "请重新连接后再用官方 API 发布。"
+                : authorizing
+                  ? "已在系统浏览器打开 X 授权页，完成后会自动返回；最多等待 3 分钟。"
+                  : source === "default"
+                    ? "使用本版本内置的应用，通过系统浏览器授权，无需提供账号密码。"
+                    : configured
+                      ? "已保存你的应用配置。通过系统浏览器授权，无需提供账号密码。"
+                      : "这个版本没有内置 X 应用。官方 API 发布需要你自己的开发者应用；不想注册也可以使用网页辅助发布。"}
           </span>
         </div>
         {authorizing && <LoaderCircle size={16} className="spin" aria-hidden="true" />}
-        {connected && (
+        {(connected || expired) && (
           <button type="button" className="button quiet small" disabled={busy} onClick={() => void disconnect()}>
             断开
           </button>
         )}
       </div>
-      {!loading && !connected && (
+      {!loading && (!connected || expired) && (
         <>
           <details
             className="disclosure x-setup"
@@ -143,7 +173,11 @@ export function XConnection({
             onToggle={(event) => setSetupOpen(event.currentTarget.open)}
           >
             <summary>
-              {configured ? "修改 X 应用配置" : "首次连接：配置 X 应用"}
+              {source === "default"
+                ? "高级：改用自己的 X 应用"
+                : configured
+                  ? "修改 X 应用配置"
+                  : "配置自己的 X 应用（高级）"}
               <ChevronDown size={14} className="chevron" aria-hidden="true" />
             </summary>
             <div className="disclosure-body">
@@ -197,6 +231,19 @@ export function XConnection({
                 </li>
               </ol>
               <p>不填写 Client Secret、Token 或 Cookie。X API 按量计费，连接账号和发帖前请在控制台确认额度。</p>
+              {api.xSaveClientId && (
+                <div className="inline-actions">
+                  <button
+                    type="button"
+                    className="button small"
+                    disabled={busy || !edited}
+                    onClick={() => void save()}
+                  >
+                    保存配置
+                  </button>
+                  <span className="field-help">只保存在这台电脑，不会开始授权。</span>
+                </div>
+              )}
             </div>
           </details>
           <div className="inline-actions">
@@ -207,7 +254,7 @@ export function XConnection({
               aria-busy={authorizing}
               onClick={() => void connect()}
             >
-              {authorizing ? "等待授权…" : "连接 X"}
+              {authorizing ? "等待授权…" : expired ? "重新连接 X" : "连接 X"}
             </button>
             {authorizing && (
               <button

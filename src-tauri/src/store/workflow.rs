@@ -178,6 +178,22 @@ impl WorkbenchStore {
         })
     }
 
+    /// Image preparation only swaps remote image addresses for stored copies of the same images, so a
+    /// preparation that was bound to the revision just before it follows to the new revision.
+    pub fn follow_image_revision(&mut self, previous: i64, draft: &Draft) -> Result<(), String> {
+        for platform in ["x", "juejin"] {
+            if let Some(mut preparation) = self.preparation(&draft.id, platform)? {
+                if preparation.revision == previous {
+                    preparation.revision = draft.revision;
+                    preparation.content_hash = content_hash(&draft.title, &draft.body);
+                    preparation.updated_at = validation::now();
+                    self.put_preparation(&preparation)?;
+                }
+            }
+        }
+        Ok(())
+    }
+
     pub fn clear_preparation(&mut self, draft_id: &str, platform: &str) -> Result<(), String> {
         validation::assert_id(draft_id)?;
         self.connection

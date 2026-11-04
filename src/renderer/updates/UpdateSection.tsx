@@ -3,7 +3,7 @@ import { createPortal } from "react-dom";
 import { ChevronDown, CircleAlert, ExternalLink, LoaderCircle, RefreshCw, RotateCcw } from "lucide-react";
 import { api, errorMessage } from "../api";
 import type { Updates } from "./useUpdates";
-import { updateFailureNotice } from "./updateState";
+import { updateNotices } from "./updateState";
 
 const releasePage = "https://github.com/corn12138/content-workbench/releases";
 
@@ -19,20 +19,22 @@ export function UpdateSection({
   version?: string;
 }) {
   if (!api.checkUpdate) return null;
-  const notice = updateFailureNotice(updates);
+  const notices = updateNotices(updates.state);
   const openBackups = () =>
     void api.openUpdateBackups?.().catch((e) => notify(errorMessage(e)));
   const openReleases = () =>
     void api.openExternal(releasePage).catch((e) => notify(errorMessage(e)));
-  const status = updates.checking
+  // Check and install results are shown on separate lines so one never reads as the other.
+  const checkStatus = updates.checking
     ? "正在连接发行页…"
-    : updates.installing
-      ? "正在备份资料和旧版应用，然后安装…"
-      : updates.error
-        ? updates.error === "install"
-          ? "升级没有完成"
-          : "检查未完成"
-        : updates.message || (updates.automatic ? "自动检查已开启" : "自动检查已关闭");
+    : updates.state.check.error
+      ? "检查未完成"
+      : updates.state.check.message || (updates.automatic ? "自动检查已开启" : "自动检查已关闭");
+  const installStatus = updates.installing
+    ? updates.progress || "正在升级…"
+    : updates.state.install.error
+      ? "上次升级没有完成"
+      : "";
   return (
     <section className="settings-section" aria-labelledby="settings-updates">
       <h2 id="settings-updates">
@@ -45,8 +47,14 @@ export function UpdateSection({
         <dd>{version || "正在读取…"}</dd>
         <dt>可用版本</dt>
         <dd>{updates.available?.version || "—"}</dd>
-        <dt>状态</dt>
-        <dd role="status">{status}</dd>
+        <dt>检查</dt>
+        <dd role="status">{checkStatus}</dd>
+        {installStatus && (
+          <>
+            <dt>升级</dt>
+            <dd role="status">{installStatus}</dd>
+          </>
+        )}
       </dl>
       <div className="settings-actions">
         <button
@@ -70,8 +78,8 @@ export function UpdateSection({
           </button>
         )}
       </div>
-      {notice && (
-        <div className="notice danger update-failure" role="alert">
+      {notices.map((notice) => (
+        <div className="notice danger update-failure" role="alert" key={notice.kind} data-kind={notice.kind}>
           <CircleAlert size={16} aria-hidden="true" />
           <div className="notice-body">
             <span className="notice-title">{notice.title}</span>
@@ -81,7 +89,8 @@ export function UpdateSection({
               <button
                 type="button"
                 className="button"
-                onClick={() => (updates.error === "install" ? install() : void updates.check())}
+                disabled={updates.checking || updates.installing || (notice.kind === "install" && !updates.available)}
+                onClick={() => (notice.kind === "install" ? install() : void updates.check())}
               >
                 {notice.retryLabel}
               </button>
@@ -98,7 +107,7 @@ export function UpdateSection({
             </div>
           </div>
         </div>
-      )}
+      ))}
       {updates.available?.notes && (
         <details className="disclosure">
           <summary>

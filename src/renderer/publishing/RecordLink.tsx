@@ -18,6 +18,8 @@ export function RecordLink({
   onBusy,
   onRecorded,
   onViewRecords,
+  value,
+  onChange,
 }: {
   platform: "juejin" | "x";
   draft: Draft;
@@ -26,8 +28,13 @@ export function RecordLink({
   onBusy: (busy: boolean) => void;
   onRecorded: () => Promise<void>;
   onViewRecords: () => void;
+  /** Controlled value so an unfinished link survives navigation and restart. */
+  value?: string;
+  onChange?: (url: string) => void;
 }) {
-  const [url, setURL] = useState("");
+  const [ownURL, setOwnURL] = useState("");
+  const url = value ?? ownURL;
+  const setURL = onChange ?? setOwnURL;
   const [error, setError] = useState("");
   const [recording, setRecording] = useState(false);
   const [recorded, setRecorded] = useState(false);

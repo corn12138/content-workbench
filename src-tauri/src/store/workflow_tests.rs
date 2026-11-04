@@ -91,6 +91,21 @@ fn image_results_keep_their_revision_and_pending_url() {
     assert_eq!(saved.images, images);
     assert_eq!(saved.images_revision, Some(1));
     assert_eq!(saved.pending_url, "https://juejin.cn/post/1");
+    // A revision produced by image preparation carries the X preparation along.
+    store
+        .save_preparation(prep(&d.id, "x", 1, Some("短帖")))
+        .unwrap();
+    let swapped = store.save_draft(edit(&d, "图", "![a](assets/x)")).unwrap();
+    store.follow_image_revision(1, &swapped).unwrap();
+    let x = store
+        .workflow()
+        .unwrap()
+        .preparations
+        .into_iter()
+        .find(|p| p.platform == "x")
+        .unwrap();
+    assert_eq!(x.revision, swapped.revision);
+    let d = swapped;
     let mut bad = images.clone();
     bad[0].filename = Some("../escape.png".into());
     assert!(store.save_image_results(&d, bad).is_err());
