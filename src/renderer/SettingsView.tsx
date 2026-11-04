@@ -11,7 +11,8 @@ import {
   LoaderCircle,
   Upload,
 } from "lucide-react";
-import type { AppInfo } from "../shared/contracts";
+import type { AppInfo, BackupPreview, BackupReceipt } from "../shared/contracts";
+import { backupSummaryLines, formatBytes } from "./backupText";
 import { XConnection } from "./publishing/XConnection";
 import "./publishing/publishing.css";
 import { api, errorMessage } from "./api";
@@ -33,6 +34,9 @@ export function SettingsView({
   const [info, setInfo] = useState<AppInfo | null>(null);
   const [infoError, setInfoError] = useState("");
   const [outcome, setOutcome] = useState<DataOutcome | null>(null);
+  const [receipt, setReceipt] = useState<BackupReceipt | null>(null);
+  const [revealError, setRevealError] = useState("");
+  const [preview, setPreview] = useState<BackupPreview | null>(null);
   const busy = outcome?.state === "running" || outcome?.state === "refreshing";
   useEffect(() => {
     let active = true;
@@ -44,19 +48,69 @@ export function SettingsView({
       .catch((error) => {
         if (active) setInfoError(errorMessage(error));
       });
+    void api.lastBackup?.().then(
+      (value) => active && setReceipt(value),
+      () => {},
+    );
     return () => {
       active = false;
     };
   }, []);
   const run = async (kind: "backup" | "restore") => {
     if (busy) return;
+    setRevealError("");
+    if (kind === "backup" && api.createBackup) {
+      setOutcome({ kind, state: "running" });
+      // The receipt is returned only after the file is written; cancel and failure keep the previous one.
+      let written: BackupReceipt | null = null;
+      const next = await runBackup(async () => {
+        written = await api.createBackup!();
+        return !!written;
+      }, errorMessage);
+      if (written) setReceipt(written);
+      setOutcome(next);
+      return;
+    }
+    if (kind === "restore" && api.inspectBackup) {
+      // Preflight: choose and validate the file without changing anything, then confirm inline.
+      setOutcome({ kind, state: "running" });
+      setPreview(null);
+      try {
+        const value = await api.inspectBackup();
+        if (!value) return setOutcome({ kind, state: "cancelled" });
+        setPreview(value);
+        setOutcome(null);
+      } catch (error) {
+        setOutcome({ kind, state: "failed", message: errorMessage(error) });
+      }
+      return;
+    }
     setOutcome({ kind, state: "running" });
-    // Native commands own file selection and the restore confirmation; false means the user cancelled.
+    // Older bridges own file selection and the restore confirmation; false means the user cancelled.
     setOutcome(
       kind === "backup"
         ? await runBackup(() => api.backup(), errorMessage)
         : await runRestore(() => api.restoreBackup(), onRestored, errorMessage),
     );
+  };
+  const confirmRestore = async () => {
+    if (!preview || busy) return;
+    const token = preview.token;
+    setPreview(null);
+    setOutcome({ kind: "restore", state: "running" });
+    setOutcome(await runRestore(() => api.restoreInspected!(token), onRestored, errorMessage));
+  };
+  const cancelRestore = () => {
+    setPreview(null);
+    setOutcome({ kind: "restore", state: "cancelled" });
+    void api.cancelRestore?.().catch(() => {});
+  };
+  const reveal = () => {
+    setRevealError("");
+    void api.revealBackup?.().catch((error) => {
+      setRevealError(errorMessage(error));
+      setReceipt((current) => (current ? { ...current, exists: false } : current));
+    });
   };
   const reload = async () => {
     if (busy) return;
@@ -87,7 +141,11 @@ export function SettingsView({
           <div className="setting-row">
             <div className="setting-label">
               <strong>备份与恢复</strong>
-              <span>备份时选择保存位置；恢复时选择备份文件并在系统对话框中确认。</span>
+              <span>
+                {api.inspectBackup
+                  ? "备份时选择保存位置；恢复时先选择备份文件，核对内容后再确认。"
+                  : "备份时选择保存位置；恢复时选择备份文件并在系统对话框中确认。"}
+              </span>
             </div>
             <div className="settings-actions">
               <button
@@ -116,10 +174,56 @@ export function SettingsView({
                 ) : (
                   <Upload size={15} aria-hidden="true" />
                 )}
-                {busy && outcome?.kind === "restore" ? "正在恢复…" : "恢复备份"}
+                {busy && outcome?.kind === "restore" ? (preview ? "正在恢复…" : "正在读取…") : "恢复备份"}
               </button>
             </div>
           </div>
+          {receipt && (
+            <div className="backup-receipt" role="status">
+              <span>
+                上次备份：<strong>{receipt.filename}</strong> · {formatBytes(receipt.size)} ·{" "}
+                {new Date(receipt.savedAt).toLocaleString("zh-CN")}
+              </span>
+              {receipt.exists ? (
+                api.revealBackup && (
+                  <button type="button" className="link-button" onClick={reveal}>
+                    在访达中显示
+                  </button>
+                )
+              ) : (
+                <span className="field-help">文件已被移动或删除，需要时请重新备份。</span>
+              )}
+              {revealError && <span className="field-error">{revealError}</span>}
+            </div>
+          )}
+          {preview && (
+            <div className="notice warning restore-preview" role="alert">
+              <CircleAlert size={16} aria-hidden="true" />
+              <div className="notice-body">
+                <span className="notice-title">用这份备份恢复本地资料？</span>
+                <p>
+                  {preview.filename} · {formatBytes(preview.size)} · {preview.summary.format}
+                </p>
+                <ul className="restore-counts">
+                  {backupSummaryLines(preview.summary).map((line) => (
+                    <li key={line}>{line}</li>
+                  ))}
+                </ul>
+                <p>
+                  恢复会用这份备份替换当前全部本地资料。替换前会先在资料目录保存现有资料的完整副本；线上文章、X
+                  授权和发布去重记录不受影响。
+                </p>
+                <div className="notice-actions">
+                  <button type="button" className="button primary" onClick={() => void confirmRestore()}>
+                    恢复这份备份
+                  </button>
+                  <button type="button" className="button quiet" onClick={cancelRestore}>
+                    取消
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
           {outcome?.state === "done" && (
             <div className="notice success" role="status">
               <CircleCheckBig size={16} aria-hidden="true" />
@@ -127,7 +231,7 @@ export function SettingsView({
                 <p>
                   {outcome.kind === "backup"
                     ? full
-                      ? "备份文件已保存到你选择的位置，包含全部资料、图片和订阅。"
+                      ? "备份已完成，包含稿件与历史、图片、订阅与笔记、发布记录、发布准备和反馈记录。"
                       : "备份文件已保存到你选择的位置，包含全部文字资料和历史版本。"
                     : "资料已恢复。恢复前的资料副本已保留在资料目录中。"}
                 </p>
@@ -218,7 +322,9 @@ export function SettingsView({
             <strong>
               X <span className="badge warning">实验性</span>
             </strong>
-            <span>真实账号尚未完成验收。发布前仍会让你确认内容和账号。</span>
+            <span>
+              不需要开发者应用也能用网页辅助发布（复制、打开 X、手动记录链接）。官方 API 发布与读取数据为实验性，真实账号尚未验收；发布前仍会让你确认内容和账号。
+            </span>
           </div>
           {api.xAccount ? (
             <XConnection />

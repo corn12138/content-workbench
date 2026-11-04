@@ -371,8 +371,12 @@ export function App() {
           ) : view === "feedback" ? (
             <RecordsView
               publications={data.publications}
+              drafts={data.drafts}
+              feedback={workflow.feedback}
               notify={notify}
               onDrafts={() => changeView("drafts")}
+              onOpenDraft={(draft) => void action(() => chooseDraft(draft))}
+              onChanged={refresh}
             />
           ) : view === "reading" ? (
             <ReadingView
