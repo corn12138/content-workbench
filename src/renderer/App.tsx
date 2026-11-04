@@ -35,6 +35,8 @@ export function App() {
   const publishButton = useRef<HTMLButtonElement>(null);
   const layout = useShellLayout(shell);
   const [busy, setBusy] = useState(false);
+  // Set after a restore replaced the data and until the restored data has been read back successfully.
+  const [restoredUnread, setRestoredUnread] = useState(false);
   const [closing, setClosing] = useState(false);
   const closeSequence = useRef(0);
   const actionPending = useRef(false);
@@ -227,6 +229,25 @@ export function App() {
                 重试
               </button>
             </div>
+          ) : restoredUnread && view !== "settings" ? (
+            <div className="empty-state" role="alert">
+              <h2>资料已恢复，列表暂未刷新</h2>
+              <p>恢复已经完成。为避免在旧列表上继续编辑，请先重新读取资料。</p>
+              <div className="actions">
+                <button
+                  type="button"
+                  className="button primary"
+                  onClick={() =>
+                    void refresh().then(
+                      () => setRestoredUnread(false),
+                      (error) => notify(errorMessage(error)),
+                    )
+                  }
+                >
+                  重新读取资料
+                </button>
+              </div>
+            </div>
           ) : view === "drafts" && publishing ? (
             <PublishWorkspace
               draft={publishing}
@@ -304,7 +325,10 @@ export function App() {
               onRestored={async () => {
                 resetEditor();
                 setSelected(null);
+                setPublishing(null);
+                setRestoredUnread(true);
                 await refresh();
+                setRestoredUnread(false);
               }}
               notify={notify}
             />

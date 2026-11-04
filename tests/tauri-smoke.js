@@ -236,6 +236,83 @@
   await click("检查更新");
   await wait(() => document.body.textContent.includes("开发预览版不检查线上更新"), "debug updater stays offline");
   assert(!button("升级到 0.4.0"), "A failed check must not offer installation");
+  // Failure-state regressions. Bridge methods are replaced only inside this injected debug test and restored
+  // afterwards; nothing is sent to X, and the fake restore never touches data.
+  const original = { ...api };
+  const fail = (message) => async () => { throw new Error(message); };
+  const counted = (impl) => { const fn = async (...args) => { fn.calls += 1; return impl(...args); }; fn.calls = 0; return fn; };
+  const outcome = () => document.querySelector(".x-outcome")?.dataset.outcome;
+  const openX = async () => {
+    await click("稿件");
+    await wait(() => button("准备发布") && !button("准备发布").disabled, "draft ready to publish");
+    await click("准备发布");
+    await wait(() => tile("x") && !tile("x").disabled, "publish workspace");
+    tile("x").click();
+    await wait(() => document.querySelector("#x-post-text"), "X composer with test account");
+    fill("#x-post-text", "回归测试短帖，不会发送");
+    await click("发布到 X…");
+    await wait(() => button("确认发布到 @example"), "final account confirmation");
+    await click("确认发布到 @example");
+  };
+  try {
+    api.xAccount = async () => ({ connected: true, username: "example", clientId: "fixture", callback: "http://127.0.0.1:34187/oauth/x/callback" });
+    api.openExternal = fail("无法打开链接。");
+    api.copyText = fail("复制未完成。");
+    api.xPublish = fail("X 未返回明确发布结果，请到个人主页核实；不要重复发送。");
+    await openX();
+    await wait(() => outcome() === "uncertain", "unknown X result");
+    await click("打开我的 X 主页");
+    await wait(() => document.querySelector(".x-action-error"), "secondary action error");
+    assert(outcome() === "uncertain", "Opening the profile changed the unknown result");
+    assert(!button("发布到 X…") && !button("确认发布到 @example")?.offsetParent, "Unknown result offered a resend");
+    assert(document.querySelector("#x-post-text").readOnly && document.querySelector("#record-x"), "Unknown result lost the manual record path");
+    await click("返回编辑");
+    api.xPublish = async () => ({ url: "https://x.com/example/status/1234567890", recorded: true, warning: null });
+    await openX();
+    await wait(() => outcome() === "published", "X receipt");
+    for (const [label, message] of [["打开作品", "无法打开链接。"], ["复制作品链接", "复制未完成。"]]) {
+      await click(label);
+      await wait(() => document.querySelector(".x-action-error")?.textContent.includes(message), `${label} failure shown`);
+      assert(outcome() === "published" && !document.body.textContent.includes("没有发布"), `${label} failure downgraded the receipt`);
+    }
+    await click("返回编辑");
+    api.xPublish = fail("请先连接 X 账号。");
+    await openX();
+    await wait(() => outcome() === "failed", "local X failure");
+    assert(!document.querySelector(".x-outcome").textContent.includes("拒绝"), "Local failure described as a platform rejection");
+    await click("返回编辑");
+
+    let snapshotFailures = 1;
+    api.restoreBackup = counted(async () => true);
+    api.snapshot = counted(async () => {
+      if (snapshotFailures-- > 0) throw new Error("资料暂时无法读取");
+      return original.snapshot();
+    });
+    await click("设置");
+    await click("恢复备份");
+    await wait(() => document.querySelector(".restore-refresh")?.textContent.includes("资料已恢复，列表暂未刷新"), "restored but not refreshed");
+    assert(!document.body.textContent.includes("恢复未完成"), "Completed restore reported as failed");
+    await click("稿件");
+    await wait(() => document.body.textContent.includes("资料已恢复，列表暂未刷新") && !editor(), "stale list blocked");
+    await click("重新读取资料");
+    await wait(() => document.querySelector(".list-item"), "data read after retry");
+    assert(api.restoreBackup.calls === 1 && api.snapshot.calls >= 2, "Retry ran restore again or did not refresh");
+
+    let checks = 0;
+    api.checkUpdate = async () => { if (checks++ === 0) throw new Error("网络不可用"); return { version: "9.9.9", notes: "" }; };
+    api.installUpdate = fail("安装未完成，升级前副本已保留；请查看升级备份。");
+    await click("设置");
+    await click("检查更新");
+    await wait(() => document.querySelector(".update-failure")?.textContent.includes("检查更新未完成"), "check failure");
+    await click("检查更新");
+    await wait(() => button("升级到 9.9.9") && !document.querySelector(".update-failure"), "stale check error cleared");
+    await click("升级到 9.9.9");
+    await wait(() => document.querySelector(".update-failure")?.textContent.includes("升级没有完成"), "install failure");
+    const failure = document.querySelector(".update-failure").textContent;
+    assert(!/没有改动|未改动/.test(failure) && [...document.querySelectorAll(".update-failure button")].some((b) => b.textContent.includes("查看升级备份")), "Install failure overclaims or hides backups");
+  } finally {
+    Object.assign(api, original);
+  }
   await click("阅读");
   await wait(() => document.querySelector(".reading-workspace"), "reading workspace");
   await openReading("Subscription article");
@@ -289,7 +366,7 @@
   snapshot = await api.snapshot();
   assert(snapshot.drafts.some((draft) => draft.body.includes("来源：https://example.com/engineering-notes")), "Converted note lost attribution");
   await step("full_backup_roundtrip");
-  await step("complete", { imagePreparationFailureVisible: true, updateSettingsOfflineGuard: true, juejinInlineAnchorAdaptation: true, mermaidDiagramRendered: true, mermaidErrorsVisible: true, remoteImagesOptIn: true, privateRemoteImageBlocked: true, markdownHistoryParity: true, markdownEqualWidthAppearance: true, juejinMeasuredTypography: true, mermaidPixelParity: true, markdownFixtureRendered: true, markdownAnchorsScoped: true, markdownEditorPublishParity: true, markdownNarrowLayout: true, xSetupRendered: true, unauthenticatedPublishBlocked: true, cachedContentSearch: true, storedImageRendered: true, rssContentRendered: true, rssRichLayout: true, rssCodeWhitespace: true, rssRelativeLinks: true, rssAnchors: true, rssImagesOptIn: true, rssContinuousReading: true, publishFocusRestored: true, rssNarrowLayout: true, privateFeedBlocked: true, fullBackupRoundtrip: true, rendererIsolation: true, autosaveOnNavigation: true, markdownSanitized: true, nativeClipboard: clipboardAvailable, nativeClipboardSkipped: !clipboardAvailable, manualPublicationRecorded: true, readingNoteSaved: true, readingToDraft: true, narrowViewport: true });
+  await step("complete", { imagePreparationFailureVisible: true, updateSettingsOfflineGuard: true, juejinInlineAnchorAdaptation: true, mermaidDiagramRendered: true, mermaidErrorsVisible: true, remoteImagesOptIn: true, privateRemoteImageBlocked: true, markdownHistoryParity: true, markdownEqualWidthAppearance: true, juejinMeasuredTypography: true, mermaidPixelParity: true, markdownFixtureRendered: true, markdownAnchorsScoped: true, markdownEditorPublishParity: true, markdownNarrowLayout: true, xSetupRendered: true, unauthenticatedPublishBlocked: true, cachedContentSearch: true, storedImageRendered: true, rssContentRendered: true, rssRichLayout: true, rssCodeWhitespace: true, rssRelativeLinks: true, rssAnchors: true, rssImagesOptIn: true, rssContinuousReading: true, publishFocusRestored: true, xOutcomeSurvivesSecondaryFailure: true, xLocalFailureNotRejection: true, restoreRefreshSeparated: true, restoreRetryRefreshOnly: true, updateFailureNeutral: true, updateCheckErrorCleared: true, rssNarrowLayout: true, privateFeedBlocked: true, fullBackupRoundtrip: true, rendererIsolation: true, autosaveOnNavigation: true, markdownSanitized: true, nativeClipboard: clipboardAvailable, nativeClipboardSkipped: !clipboardAvailable, manualPublicationRecorded: true, readingNoteSaved: true, readingToDraft: true, narrowViewport: true });
   // Closing immediately exercises the pending-save barrier instead of waiting for debounce.
   fill('[aria-label="文章标题"]', "Tauri 测试样本 · 关闭时保存");
   await step("close");

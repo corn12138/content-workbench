@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import { ChevronDown, CircleAlert, ExternalLink, LoaderCircle, RefreshCw, RotateCcw } from "lucide-react";
 import { api, errorMessage } from "../api";
 import type { Updates } from "./useUpdates";
+import { updateFailureNotice } from "./updateState";
 
 const releasePage = "https://github.com/corn12138/content-workbench/releases";
 
@@ -18,6 +19,9 @@ export function UpdateSection({
   version?: string;
 }) {
   if (!api.checkUpdate) return null;
+  const notice = updateFailureNotice(updates);
+  const openBackups = () =>
+    void api.openUpdateBackups?.().catch((e) => notify(errorMessage(e)));
   const openReleases = () =>
     void api.openExternal(releasePage).catch((e) => notify(errorMessage(e)));
   const status = updates.checking
@@ -26,7 +30,7 @@ export function UpdateSection({
       ? "正在备份资料和旧版应用，然后安装…"
       : updates.error
         ? updates.error === "install"
-          ? "升级未完成"
+          ? "升级没有完成"
           : "检查未完成"
         : updates.message || (updates.automatic ? "自动检查已开启" : "自动检查已关闭");
   return (
@@ -66,22 +70,27 @@ export function UpdateSection({
           </button>
         )}
       </div>
-      {updates.error && (
-        <div className="notice danger" role="alert">
+      {notice && (
+        <div className="notice danger update-failure" role="alert">
           <CircleAlert size={16} aria-hidden="true" />
           <div className="notice-body">
-            <span className="notice-title">
-              {updates.error === "install" ? "升级未完成，当前版本没有改动" : "检查更新未完成"}
-            </span>
-            <p>{updates.message}</p>
+            <span className="notice-title">{notice.title}</span>
+            <p>{notice.detail}</p>
+            {notice.showBackups && <p>升级前已保留资料和旧版应用的副本，可在“升级备份”中查看或回退。</p>}
             <div className="notice-actions">
               <button
                 type="button"
                 className="button"
                 onClick={() => (updates.error === "install" ? install() : void updates.check())}
               >
-                {updates.error === "install" ? "重试升级" : "重新检查"}
+                {notice.retryLabel}
               </button>
+              {notice.showBackups && (
+                <button type="button" className="button quiet" onClick={openBackups}>
+                  <RotateCcw size={13} aria-hidden="true" />
+                  查看升级备份
+                </button>
+              )}
               <button type="button" className="button quiet" onClick={openReleases}>
                 <ExternalLink size={13} aria-hidden="true" />
                 打开发行页
@@ -121,7 +130,7 @@ export function UpdateSection({
           <button
             type="button"
             className="button"
-            onClick={() => void api.openUpdateBackups?.().catch((e) => notify(errorMessage(e)))}
+            onClick={openBackups}
           >
             <RotateCcw size={14} aria-hidden="true" />
             查看升级备份

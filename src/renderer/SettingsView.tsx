@@ -17,10 +17,7 @@ import "./publishing/publishing.css";
 import { api, errorMessage } from "./api";
 import { UpdateSection } from "./updates/UpdateSection";
 import type { Updates } from "./updates/useUpdates";
-
-type Outcome =
-  | { kind: "backup" | "restore"; state: "running" | "done" | "cancelled" }
-  | { kind: "backup" | "restore"; state: "failed"; message: string };
+import { reloadAfterRestore, runBackup, runRestore, type DataOutcome } from "./restoreFlow";
 
 export function SettingsView({
   onRestored,
@@ -35,8 +32,8 @@ export function SettingsView({
 }) {
   const [info, setInfo] = useState<AppInfo | null>(null);
   const [infoError, setInfoError] = useState("");
-  const [outcome, setOutcome] = useState<Outcome | null>(null);
-  const busy = outcome?.state === "running";
+  const [outcome, setOutcome] = useState<DataOutcome | null>(null);
+  const busy = outcome?.state === "running" || outcome?.state === "refreshing";
   useEffect(() => {
     let active = true;
     api
@@ -54,14 +51,17 @@ export function SettingsView({
   const run = async (kind: "backup" | "restore") => {
     if (busy) return;
     setOutcome({ kind, state: "running" });
-    try {
-      // The native commands own file selection and the restore confirmation; false means the user cancelled.
-      const done = kind === "backup" ? await api.backup() : await api.restoreBackup();
-      if (done && kind === "restore") await onRestored();
-      setOutcome({ kind, state: done ? "done" : "cancelled" });
-    } catch (error) {
-      setOutcome({ kind, state: "failed", message: errorMessage(error) });
-    }
+    // Native commands own file selection and the restore confirmation; false means the user cancelled.
+    setOutcome(
+      kind === "backup"
+        ? await runBackup(() => api.backup(), errorMessage)
+        : await runRestore(() => api.restoreBackup(), onRestored, errorMessage),
+    );
+  };
+  const reload = async () => {
+    if (busy) return;
+    setOutcome({ kind: "restore", state: "refreshing" });
+    setOutcome(await reloadAfterRestore(onRestored, errorMessage));
   };
   const full = !!api.library;
   return (
@@ -150,6 +150,27 @@ export function SettingsView({
                 <div className="notice-actions">
                   <button type="button" className="button" onClick={() => void run(outcome.kind)}>
                     {outcome.kind === "backup" ? "重新备份" : "选择其他备份文件"}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+          {(outcome?.state === "refreshFailed" || outcome?.state === "refreshing") && (
+            <div className="notice warning restore-refresh" role="alert">
+              <CircleAlert size={16} aria-hidden="true" />
+              <div className="notice-body">
+                <span className="notice-title">资料已恢复，列表暂未刷新</span>
+                {outcome.state === "refreshFailed" && <p>{outcome.message}</p>}
+                <p>恢复已经完成，无需再次恢复。重新读取资料后再继续编辑。</p>
+                <div className="notice-actions">
+                  <button
+                    type="button"
+                    className="button"
+                    disabled={outcome.state === "refreshing"}
+                    aria-busy={outcome.state === "refreshing"}
+                    onClick={() => void reload()}
+                  >
+                    {outcome.state === "refreshing" ? "正在读取…" : "重新读取资料"}
                   </button>
                 </div>
               </div>

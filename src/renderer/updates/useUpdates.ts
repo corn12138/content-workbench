@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useReducer, useRef, useState } from "react";
+import { initialUpdateState, updateReducer } from "./updateState";
 import { api, errorMessage } from "../api";
 
 const preferenceKey = "workbench-auto-update-check";
@@ -22,14 +23,7 @@ export function useUpdates() {
   const [automatic, setAutomatic] = useState(
     () => read(preferenceKey) !== "off",
   );
-  const [available, setAvailable] = useState<{
-    version: string;
-    notes: string;
-  } | null>(null);
-  const [checking, setChecking] = useState(false);
-  const [installing, setInstalling] = useState(false);
-  const [message, setMessage] = useState("");
-  const [error, setError] = useState<"check" | "install" | null>(null);
+  const [state, dispatch] = useReducer(updateReducer, initialUpdateState);
   const [progress, setProgress] = useState("");
   const pending = useRef(false);
   const mounted = useRef(true);
@@ -43,25 +37,15 @@ export function useUpdates() {
   const check = useCallback(async (quiet = false) => {
     if (!api.checkUpdate || pending.current) return;
     pending.current = true;
-    setChecking(true);
-    if (!quiet) {
-      setMessage("");
-      setError(null);
-    }
+    dispatch({ type: "checkStart", quiet });
     write(checkedKey, String(Date.now()));
     try {
       const value = await api.checkUpdate();
-      if (!mounted.current) return;
-      setAvailable(value);
-      setMessage(value ? `发现新版本 ${value.version}` : "当前已是最新版本");
+      if (mounted.current) dispatch({ type: "checkSucceeded", value });
     } catch (error) {
-      if (mounted.current && !quiet) {
-        setMessage(errorMessage(error));
-        setError("check");
-      }
+      if (mounted.current) dispatch({ type: "checkFailed", message: errorMessage(error), quiet });
     } finally {
       pending.current = false;
-      if (mounted.current) setChecking(false);
     }
   }, []);
   useEffect(() => {
@@ -79,30 +63,22 @@ export function useUpdates() {
     };
   }, [automatic, check]);
   const install = async () => {
-    if (!available || !api.installUpdate || pending.current) return;
+    if (!state.available || !api.installUpdate || pending.current) return;
     pending.current = true;
-    setInstalling(true);
+    dispatch({ type: "installStart" });
     setProgress("正在准备升级…");
-    setError(null);
     try {
-      await api.installUpdate(available.version);
+      await api.installUpdate(state.available.version);
+      if (mounted.current) dispatch({ type: "installSettled" });
     } catch (error) {
-      if (mounted.current) {
-        setMessage(errorMessage(error));
-        setError("install");
-      }
+      if (mounted.current) dispatch({ type: "installFailed", message: errorMessage(error) });
     } finally {
       pending.current = false;
-      if (mounted.current) setInstalling(false);
     }
   };
   return {
     automatic,
-    available,
-    checking,
-    installing,
-    message,
-    error,
+    ...state,
     progress,
     check,
     install,

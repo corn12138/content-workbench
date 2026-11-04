@@ -37,14 +37,42 @@ interface Props {
   publishButton: React.RefObject<HTMLButtonElement | null>;
 }
 
-/** Grows a textarea with its content so the editor column, not the field, owns scrolling. */
-function useAutosize(element: React.RefObject<HTMLTextAreaElement | null>, value: string) {
+/**
+ * Grows a textarea with its content so the editor column, not the field, owns scrolling.
+ * Width changes (window resize, collapsing the list, layout switches) re-wrap the text, so the
+ * height is recomputed on resize as well as on edits.
+ */
+function useAutosize(
+  element: React.RefObject<HTMLTextAreaElement | null>,
+  value: string,
+  mounted = true,
+) {
   useLayoutEffect(() => {
     const node = element.current;
     if (!node) return;
-    node.style.height = "auto";
-    node.style.height = `${node.scrollHeight}px`;
-  }, [element, value]);
+    fitHeight(node);
+  }, [element, value, mounted]);
+  useEffect(() => {
+    const node = element.current;
+    if (!node) return;
+    let width = node.clientWidth;
+    const observer = new ResizeObserver(() => {
+      if (node.clientWidth === width) return;
+      width = node.clientWidth;
+      fitHeight(node);
+    });
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [element, mounted]);
+}
+
+export function fitHeight(node: HTMLTextAreaElement) {
+  // Keep the scroll position of the surrounding editor column while the field is briefly collapsed.
+  const scroller = node.closest(".editor-scroll");
+  const top = scroller?.scrollTop;
+  node.style.height = "auto";
+  node.style.height = `${node.scrollHeight}px`;
+  if (scroller && top !== undefined) scroller.scrollTop = top;
 }
 
 export function DraftEditor({
@@ -71,7 +99,7 @@ export function DraftEditor({
   const imagePending = useRef<Promise<void> | null>(null);
   const [imageBusy, setImageBusy] = useState(false);
   useAutosize(titleField, editor.fields.title);
-  useAutosize(textarea, preview ? "" : editor.fields.body);
+  useAutosize(textarea, editor.fields.body, !preview);
   useEffect(() => {
     // Navigation and Quit must wait for the selected image to become part of the saved draft.
     registerFlush(async () => {

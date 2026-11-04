@@ -23,11 +23,6 @@ export function initialXText(title: string, body: string) {
     : title.trim();
 }
 
-/**
- * The native publisher reports unknown delivery outcomes with an instruction to verify on X
- * (journal claims, timeouts, incomplete receipts). Those must never be offered as a plain retry.
- */
-export const uncertainPublishError = (message: string) => message.includes("核实");
 
 const patterns = {
   juejin: /^https:\/\/juejin\.cn\/post\/[0-9]+\/?(?:[?#].*)?$/,

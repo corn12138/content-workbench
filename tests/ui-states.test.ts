@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import type { FeedItem, Reading } from "../src/shared/contracts";
 import { contentState } from "../src/renderer/reading/contentKind";
 import { groupReadings, publishedDates } from "../src/renderer/reading/orderReadings";
-import { uncertainPublishError } from "../src/renderer/publishing/text";
+import { uncertainPublishError } from "../src/renderer/publishing/xOutcome";
 import { validPublicationURL } from "../src/renderer/publishing/text";
 import { layoutFor } from "../src/renderer/layout";
 import { excerpt } from "../src/renderer/draftText";
