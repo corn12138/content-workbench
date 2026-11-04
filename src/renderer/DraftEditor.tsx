@@ -220,15 +220,19 @@ export function DraftEditor({
             onClick={insertImage}
             disabled={imageBusy}
             aria-busy={imageBusy}
+            aria-label={imageBusy ? "正在保存图片" : "插入图片"}
+            title="插入图片"
           >
             <ImagePlus size={14} aria-hidden="true" />
-            {imageBusy ? "正在保存图片…" : "插入图片"}
+            <span className="toolbar-label">{imageBusy ? "正在保存图片…" : "插入图片"}</span>
           </button>
         )}
         <button
           type="button"
           ref={historyButton}
           className="button quiet small"
+          aria-label="历史版本"
+          title="历史版本"
           onClick={() =>
             void run(async () => {
               const items = await api.revisions(draft.id);
@@ -238,7 +242,7 @@ export function DraftEditor({
           }
         >
           <History size={14} aria-hidden="true" />
-          历史版本
+          <span className="toolbar-label">历史版本</span>
         </button>
         <details
           className="more-menu"
@@ -286,12 +290,12 @@ export function DraftEditor({
             </button>
           </div>
         </details>
-        {bodyEmpty && <span className="save-status">正文为空，暂不能发布</span>}
         <button
           type="button"
           ref={publishButton}
           className="button primary"
           disabled={bodyEmpty}
+          aria-describedby={bodyEmpty ? "publish-blocked-reason" : undefined}
           onClick={() => void run(async () => onPublish(editor.current()))}
         >
           <Send size={14} aria-hidden="true" />
@@ -346,6 +350,12 @@ export function DraftEditor({
               maxLength={80}
             />
             <span>{editor.fields.body.length.toLocaleString()} 字符</span>
+            {/* Kept out of the toolbar so the primary action never wraps onto its own row at the default width. */}
+            {bodyEmpty && (
+              <span className="publish-blocked" id="publish-blocked-reason">
+                正文为空，写点内容后即可准备发布
+              </span>
+            )}
             <span>更新于 {updatedLabel(editor.current().updatedAt)}</span>
           </div>
           <div className="editor-paper">

@@ -117,10 +117,15 @@
   const fieldsFit = (label) => wait(() => fits('[aria-label="文章标题"]') && fits('[aria-label="文章正文"]'), `${label}: title and body fully visible`);
   fill('[aria-label="文章标题"]', "Tauri 本地测试样本 · 一次重构的记录 · " + "长标题需要在窄窗口中完整换行而不被截断，".repeat(3));
   const widths = [[1440, 900], [1280, 820], [1279, 820], [1180, 800], [1000, 760], [960, 720], [959, 720], [880, 680], [800, 620], [1180, 800]];
+  const toolbarOneRow = () => {
+    const toolbar = document.querySelector(".editor-toolbar").getBoundingClientRect();
+    return button("准备发布").getBoundingClientRect().bottom <= toolbar.top + 56;
+  };
   for (const [width, height] of widths) {
     await resizeTo(width, height);
     await wait(editor, `editor at ${width}`);
     await fieldsFit(`list shown at ${width}`);
+    await wait(toolbarOneRow, `editor toolbar stays on one row at ${width}`);
   }
   document.querySelector('[aria-label="收起稿件列表，专注写作"]').click();
   await wait(() => !document.querySelector('[aria-label="稿件列表"]'), "draft list collapsed");
@@ -419,7 +424,7 @@
   snapshot = await api.snapshot();
   assert(snapshot.drafts.some((draft) => draft.body.includes("来源：https://example.com/engineering-notes")), "Converted note lost attribution");
   await step("full_backup_roundtrip");
-  await step("complete", { imagePreparationFailureVisible: true, updateSettingsOfflineGuard: true, juejinInlineAnchorAdaptation: true, mermaidDiagramRendered: true, mermaidErrorsVisible: true, remoteImagesOptIn: true, privateRemoteImageBlocked: true, markdownHistoryParity: true, markdownEqualWidthAppearance: true, juejinMeasuredTypography: true, mermaidPixelParity: true, markdownFixtureRendered: true, markdownAnchorsScoped: true, markdownEditorPublishParity: true, markdownNarrowLayout: true, xSetupRendered: true, unauthenticatedPublishBlocked: true, cachedContentSearch: true, storedImageRendered: true, rssContentRendered: true, rssRichLayout: true, rssCodeWhitespace: true, rssRelativeLinks: true, rssAnchors: true, rssImagesOptIn: true, rssContinuousReading: true, publishFocusRestored: true, xOutcomeSurvivesSecondaryFailure: true, xLocalFailureNotRejection: true, restoreRefreshSeparated: true, restoreRetryRefreshOnly: true, updateFailureNeutral: true, updateCheckErrorCleared: true, updatePreBackupFailureNeutral: true, xServerFailureNotRejection: true, responsiveSweep: true, notesSurviveLayout: true, rssNarrowLayout: true, privateFeedBlocked: true, fullBackupRoundtrip: true, rendererIsolation: true, autosaveOnNavigation: true, markdownSanitized: true, nativeClipboard: clipboardAvailable, nativeClipboardSkipped: !clipboardAvailable, manualPublicationRecorded: true, readingNoteSaved: true, readingToDraft: true, narrowViewport: true });
+  await step("complete", { imagePreparationFailureVisible: true, updateSettingsOfflineGuard: true, juejinInlineAnchorAdaptation: true, mermaidDiagramRendered: true, mermaidErrorsVisible: true, remoteImagesOptIn: true, privateRemoteImageBlocked: true, markdownHistoryParity: true, markdownEqualWidthAppearance: true, juejinMeasuredTypography: true, mermaidPixelParity: true, markdownFixtureRendered: true, markdownAnchorsScoped: true, markdownEditorPublishParity: true, markdownNarrowLayout: true, xSetupRendered: true, unauthenticatedPublishBlocked: true, cachedContentSearch: true, storedImageRendered: true, rssContentRendered: true, rssRichLayout: true, rssCodeWhitespace: true, rssRelativeLinks: true, rssAnchors: true, rssImagesOptIn: true, rssContinuousReading: true, publishFocusRestored: true, xOutcomeSurvivesSecondaryFailure: true, xLocalFailureNotRejection: true, restoreRefreshSeparated: true, restoreRetryRefreshOnly: true, updateFailureNeutral: true, updateCheckErrorCleared: true, updatePreBackupFailureNeutral: true, xServerFailureNotRejection: true, responsiveSweep: true, editorToolbarOneRow: true, notesSurviveLayout: true, rssNarrowLayout: true, privateFeedBlocked: true, fullBackupRoundtrip: true, rendererIsolation: true, autosaveOnNavigation: true, markdownSanitized: true, nativeClipboard: clipboardAvailable, nativeClipboardSkipped: !clipboardAvailable, manualPublicationRecorded: true, readingNoteSaved: true, readingToDraft: true, narrowViewport: true });
   // Closing immediately exercises the pending-save barrier instead of waiting for debounce.
   fill('[aria-label="文章标题"]', "Tauri 测试样本 · 关闭时保存");
   await step("close");

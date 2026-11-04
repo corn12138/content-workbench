@@ -870,6 +870,35 @@ textarea::placeholder {
 }
 .draft-editor {
   outline: none;
+  container: editor / inline-size;
+}
+.publish-blocked {
+  color: var(--cw-warning-text);
+}
+/* Narrow editor columns (standard layout near 960px, or the list shown beside a small window):
+   secondary toolbar actions keep their icons, accessible names and tooltips, and drop the visible label. */
+@container editor (max-width: 640px) {
+  .editor-toolbar .toolbar-label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+  .editor-toolbar .button.quiet.small {
+    padding: 0 8px;
+  }
+}
+@container editor (max-width: 560px) {
+  .editor-toolbar {
+    gap: 4px;
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+  .editor-toolbar .segmented svg {
+    display: none;
+  }
 }
 .editor-scroll {
   flex: 1;
