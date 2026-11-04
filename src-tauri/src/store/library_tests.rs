@@ -258,7 +258,7 @@ fn publishing_upgrade_keeps_independent_schema_two_recovery() {
             .connection
             .query_row("PRAGMA user_version", [], |r| r.get::<_, i64>(0))
             .unwrap(),
-        4
+        5
     );
     let recovery = std::fs::read_dir(dir.path())
         .unwrap()

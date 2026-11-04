@@ -18,7 +18,15 @@ mod records;
 #[cfg(test)]
 mod tests;
 mod validation;
+mod workflow;
+pub mod workflow_models;
+mod workflow_schema;
+mod workflow_backup;
+#[cfg(test)]
+mod workflow_tests;
 
+pub use full_backup::{BackupSummary, ExportInput};
+pub use validation::{assert_id, now};
 use models::{Draft, Publication, Reading, Snapshot};
 use rusqlite::{Connection, OptionalExtension, Params};
 use serde::de::DeserializeOwned;
@@ -45,7 +53,7 @@ impl WorkbenchStore {
         let version: i64 = connection
             .query_row("PRAGMA user_version", [], |r| r.get(0))
             .map_err(|e| e.to_string())?;
-        if !matches!(version, 0 | 1 | 2 | 3 | 4) {
+        if !matches!(version, 0 | 1 | 2 | 3 | 4 | 5) {
             return Err("资料来自更新版本的应用，请升级后打开。".into());
         }
         if version == 0 {
@@ -84,6 +92,7 @@ impl WorkbenchStore {
         }
         publishing_schema::upgrade(&connection, &directory, version)?;
         reading_schema::upgrade(&connection, &directory, version)?;
+        workflow_schema::upgrade(&connection, &directory, version)?;
         connection
             .execute_batch(
                 "PRAGMA foreign_keys=ON; PRAGMA busy_timeout=5000; PRAGMA journal_mode=WAL;",

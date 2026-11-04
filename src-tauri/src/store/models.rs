@@ -62,6 +62,9 @@ pub struct Publication {
     pub url: String,
     pub confirmed_at: String,
     pub confirmation: String,
+    /// Set when the user corrected a manually recorded link; API receipts are never edited in place.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub corrected_at: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

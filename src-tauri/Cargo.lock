@@ -598,6 +598,7 @@ dependencies = [
  "image",
  "percent-encoding",
  "pulldown-cmark",
+ "quick-xml 0.42.0",
  "regex",
  "reqwest",
  "rusqlite",

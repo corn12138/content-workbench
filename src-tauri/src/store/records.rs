@@ -45,6 +45,7 @@ impl WorkbenchStore {
             url: parsed.url,
             confirmed_at: validation::now(),
             confirmation: "manual".into(),
+            corrected_at: None,
         };
         // Manual recording cannot establish platform publication success or account ownership.
         self.connection.execute("INSERT INTO publications(id, identity, draft_id, revision, payload) VALUES(?, ?, ?, ?, ?)",

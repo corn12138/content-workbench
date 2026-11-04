@@ -45,6 +45,30 @@ pub(crate) fn atomic_write(path: &Path, body: &[u8]) -> Result<(), String> {
     result
 }
 
+pub(crate) fn safe_filename(title: &str, fallback: &str) -> String {
+    let name: String = title
+        .chars()
+        .take(100)
+        .map(|c| {
+            if c.is_control() || "/\\:*?\"<>|".contains(c) {
+                '-'
+            } else {
+                c
+            }
+        })
+        .collect();
+    let name = name.trim().trim_start_matches('.').to_string();
+    if name.is_empty() {
+        fallback.into()
+    } else {
+        name
+    }
+}
+
+pub(crate) fn read_bounded(path: &Path, limit: u64) -> Result<Vec<u8>, String> {
+    bounded_bytes(path, limit)
+}
+
 #[tauri::command]
 pub async fn import_markdown(
     window: WebviewWindow,
@@ -57,12 +81,26 @@ pub async fn import_markdown(
             .file()
             .set_parent(&window)
             .set_title("导入文章")
-            .add_filter("Markdown", &["md", "markdown"])
+            .add_filter("Markdown 或导出的文章包", &["md", "markdown", "zip"])
             .blocking_pick_file();
         let Some(selected) = selected else {
             return Ok(None);
         };
         let path = selected.into_path().map_err(|e| e.to_string())?;
+        if path
+            .extension()
+            .is_some_and(|e| e.eq_ignore_ascii_case("zip"))
+        {
+            let bytes = bounded_bytes(&path, crate::store::assets::MAX_ASSET_BYTES as u64)?;
+            let name = path
+                .file_name()
+                .and_then(|n| n.to_str())
+                .unwrap_or("文章.zip")
+                .to_owned();
+            let state = app.state::<AppState>();
+            let result = state.lock()?.import_bundle(&name, &bytes)?;
+            return Ok(Some(result));
+        }
         let text = String::from_utf8(bounded_bytes(&path, 2_000_000)?)
             .map_err(|_| "请选择 UTF-8 编码的文件。")?;
         let state = app.state::<AppState>();

@@ -6,7 +6,7 @@ pub(super) fn upgrade(
     directory: &Path,
     original: i64,
 ) -> Result<(), String> {
-    if original == 4 {
+    if original >= 4 {
         return Ok(());
     }
     if original == 3 {

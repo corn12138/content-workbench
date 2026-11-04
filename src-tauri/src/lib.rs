@@ -5,6 +5,8 @@ pub mod feed_parse;
 mod files;
 mod image_preview;
 mod lifecycle;
+mod local_settings;
+pub mod opml;
 mod migration;
 mod prepared_images;
 mod publishing;
@@ -16,6 +18,7 @@ mod update_backup;
 #[cfg(test)]
 mod updater_tests;
 mod updates;
+mod workflow_commands;
 
 use std::sync::{
     atomic::{AtomicBool, AtomicU64, Ordering},
@@ -27,6 +30,7 @@ pub fn run() {
     let app = tauri::Builder::default()
         .manage(publishing::PublishingState::default())
         .manage(updates::UpdateState::default())
+        .manage(workflow_commands::RestoreState::default())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_single_instance::init(|app, _, _| {
             if let Some(window) = app.get_webview_window("main") {
@@ -43,6 +47,26 @@ pub fn run() {
             publishing::x_cancel,
             publishing::x_disconnect,
             publishing::x_publish,
+            publishing::x_save_client_id,
+            publishing::x_metrics,
+            workflow_commands::workflow,
+            workflow_commands::save_preparation,
+            workflow_commands::clear_preparation,
+            workflow_commands::update_publication,
+            workflow_commands::remove_publication,
+            workflow_commands::save_feedback,
+            workflow_commands::delete_feedback,
+            workflow_commands::compose_notes,
+            workflow_commands::export_current,
+            workflow_commands::opml_preview,
+            workflow_commands::export_opml,
+            workflow_commands::create_backup,
+            workflow_commands::last_backup,
+            workflow_commands::reveal_backup,
+            workflow_commands::inspect_backup,
+            workflow_commands::cancel_restore,
+            workflow_commands::restore_inspected,
+            workflow_commands::open_prepared_images,
             commands::snapshot,
             updates::check_update,
             updates::install_update,

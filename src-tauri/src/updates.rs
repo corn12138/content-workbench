@@ -34,8 +34,13 @@ pub struct UpdateInfo {
     notes: String,
 }
 
-fn progress(app: &AppHandle, message: &str) {
-    let _ = app.emit_to("main", "workbench:update-progress", message);
+/// Stage events let the UI say "已备份" or "正在安装" only after the native side reached that point.
+fn progress(app: &AppHandle, stage: &str, message: &str) {
+    let _ = app.emit_to(
+        "main",
+        "workbench:update-progress",
+        serde_json::json!({ "stage": stage, "message": message }),
+    );
 }
 
 #[tauri::command]
@@ -142,10 +147,11 @@ fn download(app: &AppHandle, update: &Update) -> Result<Vec<u8>, String> {
         bytes.extend_from_slice(&buffer[..read]);
         let mb = bytes.len() / (1024 * 1024);
         if mb > reported {
-            progress(app, &format!("正在下载更新… {mb} MB"));
+            progress(app, "download", &format!("正在下载更新… {mb} MB"));
             reported = mb;
         }
     }
+    progress(app, "verify", "正在校验更新包签名…");
     update
         .verify(&bytes)
         .map_err(|_| "更新包签名或版本校验失败，原应用未修改。")?;
@@ -181,9 +187,9 @@ pub async fn install_update(
     tauri::async_runtime::spawn_blocking(move || {
         let bundle =
             update_backup::app_bundle(&std::env::current_exe().map_err(|_| "无法定位应用。")?)?;
-        progress(&handle, "正在下载更新…");
+        progress(&handle, "download", "正在下载更新…");
         let bytes = download(&handle, &update)?;
-        progress(&handle, "正在备份资料和旧版应用…");
+        progress(&handle, "backup", "正在备份资料和旧版应用…");
         let state = handle.state::<AppState>();
         let store = state
             .store
@@ -197,10 +203,12 @@ pub async fn install_update(
             &store,
             &handle.package_info().version.to_string(),
         )?;
-        progress(&handle, "正在安装，完成后将重新打开…");
+        progress(&handle, "backedUp", "已建立升级备份。");
+        progress(&handle, "install", "正在安装，完成后将重新打开…");
         update
             .install(bytes)
             .map_err(|_| "安装未完成，升级前副本已保留；请查看升级备份。")?;
+        progress(&handle, "restart", "安装完成，正在重新打开…");
         state.can_close.store(true, Ordering::SeqCst);
         drop(store);
         handle.restart();
