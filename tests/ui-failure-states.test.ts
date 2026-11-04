@@ -10,7 +10,7 @@ import {
   type XPublishState,
 } from "../src/renderer/publishing/xOutcome";
 import { reloadAfterRestore, runRestore } from "../src/renderer/restoreFlow";
-import { initialUpdateState, updateNotices, updateReducer, type UpdateEvent, type UpdateState } from "../src/renderer/updates/updateState";
+import { initialUpdateState, installOnQuit, updateNotices, updateReducer, type UpdateEvent, type UpdateState } from "../src/renderer/updates/updateState";
 const updateFailureNotice = (state: UpdateState) => updateNotices(state)[0] ?? null;
 
 const run = (events: XPublishEvent[], from: XPublishState = initialXPublishState) =>
@@ -223,4 +223,26 @@ test("F3: install failures before the backup stage are not told a backup was kep
     assert.doesNotMatch(`${notice.title}${notice.guidance}`, /已保留|没有改动|未改动/, message);
     assert.ok(notice.showBackups, "the upgrade-backup entry stays available");
   }
+});
+
+test("Auto update: a verified download installs on quit only when enabled, and a failure is not retried on the next quit", () => {
+  const found = updates([{ type: "checkSucceeded", value: { version: "0.5.0", notes: "" } }, { type: "downloadStart" }]);
+  assert.equal(installOnQuit(found, true), null, "nothing installs before the download is verified");
+  const staged = updateReducer(found, { type: "downloadSucceeded", version: "0.5.0" });
+  assert.equal(installOnQuit(staged, true), "0.5.0");
+  assert.equal(installOnQuit(staged, false), null, "turning automatic updates off keeps quit a plain quit");
+  // A newer check replaces the staged version; a failed download stays quiet and stages nothing.
+  const newer = updateReducer(staged, { type: "checkSucceeded", value: { version: "0.5.1", notes: "" } });
+  assert.equal(newer.staged, null);
+  const failed = updateReducer(updateReducer(newer, { type: "downloadStart" }), { type: "downloadFailed" });
+  assert.equal(failed.staged, null);
+  assert.equal(failed.check.error, null);
+  // Install on quit fails: the error is shown with install guidance and the next quit just closes.
+  const quitFailed = updateReducer(updateReducer(staged, { type: "installStart" }), { type: "quitInstallFailed", message: "无法建立升级备份，已取消升级。" });
+  assert.equal(installOnQuit(quitFailed, true), null);
+  assert.equal(updateNotices(quitFailed)[0].kind, "install");
+  assert.equal(quitFailed.install.running, false);
+  // A download finishing for a version that is no longer current is ignored.
+  const stale = updateReducer(newer, { type: "downloadSucceeded", version: "0.5.0" });
+  assert.equal(stale.staged, null);
 });

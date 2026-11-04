@@ -29,7 +29,12 @@ export function UpdateSection({
     ? "正在连接发行页…"
     : updates.state.check.error
       ? "检查未完成"
-      : updates.state.check.message || (updates.automatic ? "自动检查已开启" : "自动检查已关闭");
+      : updates.state.check.message || (updates.automatic ? "自动更新已开启" : "自动更新已关闭");
+  const stagedStatus = updates.installOnQuit
+    ? `${updates.installOnQuit} 已下载并通过签名校验，将在退出时安装`
+    : updates.state.downloading
+      ? "正在后台下载新版本…"
+      : "";
   const installStatus = updates.installing
     ? updates.progress || "正在升级…"
     : updates.state.install.error
@@ -41,7 +46,11 @@ export function UpdateSection({
         <RefreshCw size={18} aria-hidden="true" />
         应用更新
       </h2>
-      <p>发现新版时提示你；只有点击升级后，才会自动备份资料和旧版应用，再安装并重新打开。</p>
+      <p>
+        {updates.automatic
+          ? "自动更新已开启：发现新版后在后台下载并校验签名，退出应用时先备份资料和旧版应用再安装；不会在你使用时自动重启。"
+          : "自动更新已关闭：可以手动检查；点击升级后才会备份资料和旧版应用，再安装并重新打开。"}
+      </p>
       <dl className="key-values">
         <dt>当前版本</dt>
         <dd>{version || "正在读取…"}</dd>
@@ -49,6 +58,12 @@ export function UpdateSection({
         <dd>{updates.available?.version || "—"}</dd>
         <dt>检查</dt>
         <dd role="status">{checkStatus}</dd>
+        {stagedStatus && !installStatus && (
+          <>
+            <dt>下载</dt>
+            <dd role="status">{stagedStatus}</dd>
+          </>
+        )}
         {installStatus && (
           <>
             <dt>升级</dt>
@@ -74,7 +89,7 @@ export function UpdateSection({
             disabled={updates.checking || updates.installing}
             onClick={install}
           >
-            升级到 {updates.available.version}
+            {updates.installOnQuit ? "立即重启并升级" : `升级到 ${updates.available.version}`}
           </button>
         )}
       </div>
@@ -119,8 +134,8 @@ export function UpdateSection({
       )}
       <label className="switch" htmlFor="auto-update">
         <span className="setting-label">
-          <strong>自动检查更新</strong>
-          <span>每天最多自动检查一次，仅连接本项目发行页；不会上传稿件或自动安装。</span>
+          <strong>自动更新</strong>
+          <span>每天最多检查一次，仅连接本项目发行页；下载的更新包须通过签名校验，在你退出应用时安装。不会上传稿件。</span>
         </span>
         <input
           id="auto-update"

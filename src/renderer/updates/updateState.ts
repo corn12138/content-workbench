@@ -10,6 +10,11 @@ export type InstallStage = UpdateProgress["stage"];
 export interface UpdateState {
   available: { version: string; notes: string } | null;
   checking: boolean;
+  /** Version downloaded and signature-verified in the background, ready to install on quit. */
+  staged: string | null;
+  downloading: boolean;
+  /** Set after install on quit failed, so the next quit closes normally instead of retrying. */
+  skipInstallOnQuit: boolean;
   check: { message: string; error: string | null };
   install: {
     running: boolean;
@@ -25,6 +30,10 @@ export type UpdateEvent =
   | { type: "checkStart"; quiet: boolean }
   | { type: "checkSucceeded"; value: { version: string; notes: string } | null }
   | { type: "checkFailed"; message: string; quiet: boolean }
+  | { type: "downloadStart" }
+  | { type: "downloadSucceeded"; version: string }
+  | { type: "downloadFailed" }
+  | { type: "quitInstallFailed"; message: string }
   | { type: "installStart" }
   | { type: "installProgress"; progress: UpdateProgress }
   | { type: "installFailed"; message: string }
@@ -33,6 +42,9 @@ export type UpdateEvent =
 export const initialUpdateState: UpdateState = {
   available: null,
   checking: false,
+  staged: null,
+  downloading: false,
+  skipInstallOnQuit: false,
   check: { message: "", error: null },
   install: { running: false, stage: null, progress: "", backedUp: false, error: null },
 };
@@ -49,6 +61,8 @@ export function updateReducer(state: UpdateState, event: UpdateEvent): UpdateSta
         ...state,
         checking: false,
         available: event.value,
+        // A different (newer) version makes an earlier staged download irrelevant.
+        staged: event.value && state.staged === event.value.version ? state.staged : null,
         check: {
           message: event.value ? `发现新版本 ${event.value.version}` : "当前已是最新版本",
           error: null,
@@ -59,6 +73,24 @@ export function updateReducer(state: UpdateState, event: UpdateEvent): UpdateSta
       return event.quiet
         ? { ...state, checking: false }
         : { ...state, checking: false, check: { message: "", error: event.message } };
+    case "downloadStart":
+      return { ...state, downloading: true };
+    case "downloadSucceeded":
+      return {
+        ...state,
+        downloading: false,
+        staged: state.available?.version === event.version ? event.version : state.staged,
+      };
+    case "downloadFailed":
+      // Quiet: the manual "upgrade" path still works and downloads again when clicked.
+      return { ...state, downloading: false };
+    case "quitInstallFailed":
+      return {
+        ...state,
+        skipInstallOnQuit: true,
+        staged: null,
+        install: { ...state.install, running: false, error: event.message },
+      };
     case "installStart":
       return {
         ...state,
@@ -91,6 +123,13 @@ const stageLabel: Record<InstallStage, string> = {
   restart: "重新打开",
   unknown: "升级",
 };
+
+/** The version to install when the user quits, if automatic updates staged one; never after an unresolved install failure. */
+export function installOnQuit(state: UpdateState, automatic: boolean) {
+  return automatic && state.staged && !state.skipInstallOnQuit && !state.install.running && !state.install.error
+    ? state.staged
+    : null;
+}
 
 export interface UpdateNotice {
   kind: "check" | "install";

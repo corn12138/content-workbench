@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useReducer, useRef, useState } from "react";
-import { initialUpdateState, updateReducer } from "./updateState";
+import { initialUpdateState, installOnQuit, updateReducer } from "./updateState";
 import { api, errorMessage } from "../api";
 
 const preferenceKey = "workbench-auto-update-check";
@@ -43,13 +43,31 @@ export function useUpdates() {
     write(checkedKey, String(Date.now()));
     try {
       const value = await api.checkUpdate();
-      if (mounted.current) dispatch({ type: "checkSucceeded", value });
+      if (mounted.current) {
+        // A later check may find the same version again; allow one more background download then.
+        if (value && value.version !== attempted.current) attempted.current = null;
+        dispatch({ type: "checkSucceeded", value });
+      }
     } catch (error) {
       if (mounted.current) dispatch({ type: "checkFailed", message: errorMessage(error), quiet });
     } finally {
       pending.current = false;
     }
   }, []);
+  // Automatic updates download and verify a found version once in the background; installing waits
+  // for quit (or "restart now"). A failed download is not retried until the next check finds it again.
+  const attempted = useRef<string | null>(null);
+  const version = state.available?.version;
+  useEffect(() => {
+    if (!automatic || !version || !api.downloadUpdate || state.staged === version) return;
+    if (attempted.current === version) return;
+    attempted.current = version;
+    dispatch({ type: "downloadStart" });
+    api.downloadUpdate(version).then(
+      () => mounted.current && dispatch({ type: "downloadSucceeded", version }),
+      () => mounted.current && dispatch({ type: "downloadFailed" }),
+    );
+  }, [automatic, version, state.staged]);
   useEffect(() => {
     if (!automatic || !api.checkUpdate) return;
     const tick = () => {
@@ -83,6 +101,10 @@ export function useUpdates() {
     available: state.available,
     checking: state.checking,
     installing: state.install.running,
+    /** Version that will be installed when the user quits, or null. */
+    installOnQuit: installOnQuit(state, automatic),
+    beginQuitInstall: () => dispatch({ type: "installStart" }),
+    quitInstallFailed: (message: string) => dispatch({ type: "quitInstallFailed", message }),
     progress: state.install.progress,
     check,
     install,

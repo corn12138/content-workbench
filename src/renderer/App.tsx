@@ -86,6 +86,8 @@ export function App() {
   useEffect(() => {
     void load();
   }, [load]);
+  const latestUpdates = useRef(updates);
+  latestUpdates.current = updates;
   useEffect(
     () =>
       api.onBeforeClose((attempt) => {
@@ -93,7 +95,19 @@ export function App() {
         setClosing(true);
         void flush
           .current()
-          .then(() => api.finishClose(attempt))
+          .then(async () => {
+            const current = latestUpdates.current;
+            const version = current.installOnQuit;
+            if (!version || !api.finishCloseWithUpdate) return api.finishClose(attempt);
+            // All edits are saved; install the downloaded update (after backup) and exit.
+            current.beginQuitInstall();
+            try {
+              await api.finishCloseWithUpdate(attempt, version);
+            } catch (error) {
+              current.quitInstallFailed(errorMessage(error));
+              throw new Error(`升级没有完成，应用保持打开。${errorMessage(error)} 再次退出会直接关闭。`);
+            }
+          })
           .catch((error) => {
             if (closeSequence.current === sequence) {
               setClosing(false);
@@ -258,7 +272,9 @@ export function App() {
         <main className="workspace" aria-busy={loading || busy} inert={busy}>
           {updates.available && view !== "settings" && (
             <div className="update-banner" role="status">
-              新版本 {updates.available.version} 已就绪
+              {updates.installOnQuit
+                ? `新版本 ${updates.installOnQuit} 已下载并通过校验，退出应用时会先备份再安装`
+                : `新版本 ${updates.available.version} 已就绪`}
               <button
                 type="button"
                 className="button quiet small"

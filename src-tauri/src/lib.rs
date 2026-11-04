@@ -70,6 +70,8 @@ pub fn run() {
             commands::snapshot,
             updates::check_update,
             updates::install_update,
+            updates::download_update,
+            updates::finish_close_with_update,
             updates::open_update_backups,
             commands::save_draft,
             commands::archive_draft,

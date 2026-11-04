@@ -209,6 +209,10 @@ export interface PublishReceipt {
 export interface WorkbenchAPI {
   checkUpdate?(): Promise<{ version: string; notes: string } | null>;
   installUpdate?(version: string): Promise<void>;
+  /** Downloads and verifies a checked update in the background; installs nothing. */
+  downloadUpdate?(version: string): Promise<void>;
+  /** Quit path: installs the downloaded update (after backup) and exits; rejects and cancels the quit on failure. */
+  finishCloseWithUpdate?(attempt: number | undefined, version: string): Promise<void>;
   openUpdateBackups?(): Promise<void>;
   onUpdateProgress?(handler: (progress: UpdateProgress) => void): () => void;
   prepareImages?(

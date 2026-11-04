@@ -53,6 +53,12 @@ export async function createTauriAPI(): Promise<WorkbenchAPI> {
       return call("install_update", { version });
     },
     openUpdateBackups: () => call("open_update_backups"),
+    // Background download never holds the close barrier; it does not touch the library.
+    downloadUpdate: (version) => call("download_update", { version }, false),
+    async finishCloseWithUpdate(attempt, version) {
+      while (pending.size) await Promise.allSettled([...pending]);
+      await call("finish_close_with_update", { attempt, version }, false);
+    },
     onUpdateProgress(handler) {
       updateHandlers.add(handler);
       return () => {

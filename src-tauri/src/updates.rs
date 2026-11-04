@@ -18,7 +18,11 @@ use tauri_plugin_updater::{Update, UpdaterExt};
 #[derive(Default)]
 pub struct UpdateState {
     pending: Mutex<Option<Update>>,
+    /// A package that was downloaded and passed signature verification, kept in memory until it is
+    /// installed (on quit or "restart now") or replaced by a newer check. Nothing is written to disk.
+    staged: Mutex<Option<(Update, Vec<u8>)>>,
     checking: AtomicBool,
+    downloading: AtomicBool,
 }
 struct Reset<'a>(&'a AtomicBool);
 impl Drop for Reset<'_> {
@@ -158,6 +162,119 @@ fn download(app: &AppHandle, update: &Update) -> Result<Vec<u8>, String> {
     Ok(bytes)
 }
 
+fn pending_update(app: &AppHandle, version: &str) -> Result<Update, String> {
+    let update = app
+        .state::<UpdateState>()
+        .pending
+        .lock()
+        .map_err(|_| "无法读取更新状态。")?
+        .clone()
+        .filter(|item| item.version == version)
+        .ok_or("请先重新检查更新。")?;
+    validate_download(&update)?;
+    Ok(update)
+}
+
+/// Downloads and verifies the update in the background without touching the library or the
+/// installed app. Installing stays a separate step (on quit or when the user restarts).
+#[tauri::command]
+pub async fn download_update(
+    window: WebviewWindow,
+    app: AppHandle,
+    version: String,
+) -> Result<(), String> {
+    trusted(&window)?;
+    let update = pending_update(&app, &version)?;
+    let state = app.state::<UpdateState>();
+    if state
+        .staged
+        .lock()
+        .map_err(|_| "无法读取更新状态。")?
+        .as_ref()
+        .is_some_and(|(staged, _)| staged.version == version)
+    {
+        return Ok(());
+    }
+    if state.downloading.swap(true, Ordering::SeqCst) {
+        return Err("正在下载更新，请稍等。".into());
+    }
+    let handle = app.clone();
+    let result = tauri::async_runtime::spawn_blocking(move || {
+        let _reset = Reset(&handle.state::<UpdateState>().downloading);
+        let bytes = download(&handle, &update)?;
+        *handle
+            .state::<UpdateState>()
+            .staged
+            .lock()
+            .map_err(|_| "无法保存下载的更新。")? = Some((update, bytes));
+        Ok(())
+    })
+    .await
+    .map_err(|_| "更新下载未完成。".to_string())?;
+    if result.is_err() {
+        state.downloading.store(false, Ordering::SeqCst);
+    }
+    result
+}
+
+/// Backs up the library and the current app, then installs. Shared by "restart now" and install on
+/// quit; the caller has already set the `updating` fence.
+fn run_install(handle: &AppHandle, update: Update, restart: bool) -> Result<(), String> {
+    let bundle = update_backup::app_bundle(&std::env::current_exe().map_err(|_| "无法定位应用。")?)?;
+    let staged = handle
+        .state::<UpdateState>()
+        .staged
+        .lock()
+        .map_err(|_| "无法读取更新状态。")?
+        .take()
+        .filter(|(item, _)| item.version == update.version);
+    let bytes = match staged {
+        Some((_, bytes)) => {
+            progress(handle, "verify", "已下载并通过签名校验。");
+            bytes
+        }
+        None => {
+            progress(handle, "download", "正在下载更新…");
+            download(handle, &update)?
+        }
+    };
+    progress(handle, "backup", "正在备份资料和旧版应用…");
+    let state = handle.state::<AppState>();
+    let store = state
+        .store
+        .as_ref()
+        .ok_or("资料不可用，已取消升级。")?
+        .lock()
+        .map_err(|_| "资料正忙，已取消升级。")?;
+    update_backup::prepare(
+        &state.directory,
+        &bundle,
+        &store,
+        &handle.package_info().version.to_string(),
+    )?;
+    progress(handle, "backedUp", "已建立升级备份。");
+    progress(
+        handle,
+        "install",
+        if restart { "正在安装，完成后将重新打开…" } else { "正在安装，完成后退出…" },
+    );
+    update
+        .install(bytes)
+        .map_err(|_| "安装未完成，升级前副本已保留；请查看升级备份。")?;
+    progress(
+        handle,
+        "restart",
+        if restart { "安装完成，正在重新打开…" } else { "安装完成，正在退出…" },
+    );
+    state.can_close.store(true, Ordering::SeqCst);
+    drop(store);
+    if restart {
+        handle.restart();
+    }
+    handle.exit(0);
+    Ok(())
+}
+
 #[tauri::command]
 pub async fn install_update(
     window: WebviewWindow,
@@ -174,47 +291,48 @@ pub async fn install_update(
     if state.close_pending.load(Ordering::SeqCst) {
         return Err("应用正在关闭，请重新打开后升级。".into());
     }
-    let update = app
-        .state::<UpdateState>()
-        .pending
-        .lock()
-        .map_err(|_| "无法读取更新状态。")?
-        .clone()
-        .filter(|item| item.version == version)
-        .ok_or("请先重新检查更新。")?;
-    validate_download(&update)?;
+    let update = pending_update(&app, &version)?;
     let handle = app.clone();
-    tauri::async_runtime::spawn_blocking(move || {
-        let bundle =
-            update_backup::app_bundle(&std::env::current_exe().map_err(|_| "无法定位应用。")?)?;
-        progress(&handle, "download", "正在下载更新…");
-        let bytes = download(&handle, &update)?;
-        progress(&handle, "backup", "正在备份资料和旧版应用…");
-        let state = handle.state::<AppState>();
-        let store = state
-            .store
-            .as_ref()
-            .ok_or("资料不可用，已取消升级。")?
-            .lock()
-            .map_err(|_| "资料正忙，已取消升级。")?;
-        update_backup::prepare(
-            &state.directory,
-            &bundle,
-            &store,
-            &handle.package_info().version.to_string(),
-        )?;
-        progress(&handle, "backedUp", "已建立升级备份。");
-        progress(&handle, "install", "正在安装，完成后将重新打开…");
-        update
-            .install(bytes)
-            .map_err(|_| "安装未完成，升级前副本已保留；请查看升级备份。")?;
-        progress(&handle, "restart", "安装完成，正在重新打开…");
-        state.can_close.store(true, Ordering::SeqCst);
-        drop(store);
-        handle.restart();
-    })
-    .await
-    .map_err(|_| "升级未完成，请查看升级备份后重试。".to_string())?
+    tauri::async_runtime::spawn_blocking(move || run_install(&handle, update, true))
+        .await
+        .map_err(|_| "升级未完成，请查看升级备份后重试。".to_string())?
+}
+
+/// Install on quit: called by the window after all edits were saved for this close attempt. On
+/// success the app exits with the new version installed; on failure the quit is cancelled so the
+/// user sees what happened, and the next quit closes normally.
+#[tauri::command]
+pub async fn finish_close_with_update(
+    window: WebviewWindow,
+    app: AppHandle,
+    attempt: u64,
+    version: String,
+) -> Result<(), String> {
+    trusted(&window)?;
+    let state = app.state::<AppState>();
+    if !state.close_pending.load(Ordering::SeqCst)
+        || state.close_attempt.load(Ordering::SeqCst) != attempt
+    {
+        return Ok(());
+    }
+    if state.updating.swap(true, Ordering::SeqCst) {
+        return Err("更新正在进行。".into());
+    }
+    let _reset = Reset(&state.updating);
+    let result = match pending_update(&app, &version) {
+        Ok(update) => {
+            let handle = app.clone();
+            tauri::async_runtime::spawn_blocking(move || run_install(&handle, update, false))
+                .await
+                .map_err(|_| "升级未完成，请查看升级备份后重试。".to_string())
+                .and_then(|r| r)
+        }
+        Err(error) => Err(error),
+    };
+    if result.is_err() {
+        state.close_pending.store(false, Ordering::SeqCst);
+    }
+    result
 }
 
 #[tauri::command]
