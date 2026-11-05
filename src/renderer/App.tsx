@@ -162,8 +162,20 @@ export function App() {
     // Joins the barrier so an unsaved preparation (edited post, pending link) is written first.
     void action(async () => {
       setPublishing(null);
-      // The editor remounts behind the workspace; return focus to the action that opened it.
-      requestAnimationFrame(() => publishButton.current?.focus());
+      // The editor remounts behind the workspace, which can take a few frames; keep trying to return
+      // focus to the action that opened it, unless the user has already focused something else.
+      let frames = 0;
+      const restore = () => {
+        const target = publishButton.current;
+        if (target?.isConnected) {
+          target.focus();
+          if (document.activeElement === target) return;
+        }
+        const current = document.activeElement;
+        if (current && current !== document.body && current !== target) return;
+        if (++frames < 30) requestAnimationFrame(restore);
+      };
+      requestAnimationFrame(restore);
     });
   const chooseDraft = async (draft: Draft) => {
     await refresh();

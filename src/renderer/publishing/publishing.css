@@ -285,3 +285,40 @@ ul.disclosure-body {
 .x-web .disclosure-body .button {
   margin-top: var(--cw-space-1);
 }
+/* X: the post is edited in the main area, with the original article below for reference. */
+.publish-preview .x-post-text {
+  min-height: 180px;
+  max-width: 640px;
+  font-size: 15px;
+  line-height: 1.65;
+  background: var(--cw-surface-raised);
+}
+.publish-preview .x-count,
+.publish-preview .field-help {
+  max-width: 640px;
+}
+.x-source {
+  margin-top: 32px;
+  padding-top: 20px;
+  border-top: 1px solid var(--cw-border-subtle);
+}
+.x-source-title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 10px;
+  margin: 0 0 14px;
+  font-size: var(--cw-text-md);
+  font-weight: var(--cw-weight-semibold);
+}
+.x-source-title span {
+  font-size: var(--cw-text-xs);
+  font-weight: var(--cw-weight-regular, 400);
+  color: var(--cw-text-tertiary);
+}
+.x-source .markdown {
+  color: var(--cw-text-secondary);
+}
+.x-text-status {
+  margin: 0;
+}

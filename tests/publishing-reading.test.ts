@@ -85,6 +85,9 @@ test("aggregation searches cached content and notes, filters source without drop
 
 test("long articles start with the title rather than overloading the short-post editor", () => {
   assert.equal(initialXText("Title", "Body"), "Title\n\nBody");
+  assert.equal(initialXText("标题", "# 标题\n\n正文"), "标题\n\n正文");
+  assert.equal(initialXText("标题", "## 小节\n正文"), "标题\n\n小节\n正文");
+  assert.equal(initialXText("标题", "# 别的标题\n正文"), "标题\n\n别的标题\n正文");
   assert.equal(initialXText("Title", "x".repeat(1_000_000)), "Title");
   assert.equal(initialXText("Title", "![image](assets/example.png)"), "Title");
 });
