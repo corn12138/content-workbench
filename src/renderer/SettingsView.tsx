@@ -327,7 +327,7 @@ export function SettingsView({
             </span>
           </div>
           {api.xAccount ? (
-            <XConnection />
+            <XConnection setupInitiallyOpen={false} />
           ) : (
             <p className="field-help">X 授权与发布请使用 Tauri 版。</p>
           )}

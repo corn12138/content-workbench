@@ -1224,7 +1224,7 @@ textarea::placeholder {
 }
 .record-row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 84px 150px 124px auto;
+  grid-template-columns: minmax(0, 1fr) 84px 150px 124px 140px;
   align-items: center;
   gap: 16px;
   padding: 14px 4px;
@@ -1448,6 +1448,7 @@ textarea::placeholder {
 .record-action {
   display: inline-flex;
   align-items: center;
+  justify-content: flex-end;
   gap: 4px;
 }
 .record-item .chevron {
