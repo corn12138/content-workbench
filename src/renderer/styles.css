@@ -1580,3 +1580,27 @@ textarea::placeholder {
   margin-top: 12px;
   font-size: var(--cw-text-sm);
 }
+.history-group {
+  margin-bottom: 4px;
+}
+.history-list button.nested {
+  margin-left: 12px;
+  width: calc(100% - 12px);
+}
+.history-list .history-more {
+  display: block;
+  padding: 2px 10px 6px;
+  border: 0;
+  background: transparent;
+  color: var(--cw-text-secondary);
+  font-size: var(--cw-text-xs);
+}
+.history-list .history-more:hover {
+  background: transparent;
+  color: var(--cw-text);
+  text-decoration: underline;
+}
+.history-title {
+  margin: 0 0 12px;
+  font-size: var(--cw-text-lg);
+}

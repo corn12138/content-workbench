@@ -24,6 +24,7 @@ import { useDraftEditor } from "./useDraftEditor";
 import { updatedLabel } from "./draftText";
 import { shortcutFor, shortcutLabel } from "./shortcuts";
 import { exportOutcome } from "./exportOutcome";
+import { entrySummary, groupHistory, sessionTime } from "./historyGroups";
 
 interface Props {
   draft: Draft;
@@ -31,6 +32,8 @@ interface Props {
   onPublish: (draft: Draft) => void;
   onArchive: (id: string) => Promise<void>;
   onDelete?: (draft: Draft) => void;
+  /** Revisions of this draft that publication records point at. */
+  publishedRevisions?: number[];
   registerFlush: (flush: () => Promise<void>) => void;
   notify: (message: string) => void;
   onRestored: (draft: Draft) => void;
@@ -90,6 +93,7 @@ export function DraftEditor({
   onPublish,
   onArchive,
   onDelete,
+  publishedRevisions = [],
   registerFlush,
   notify,
   onRestored,
@@ -181,12 +185,15 @@ export function DraftEditor({
   };
   const [history, setHistory] = useState<Revision[] | null>(null);
   const [selectedRevision, setSelectedRevision] = useState<Revision | null>(null);
+  const [expanded, setExpanded] = useState<Set<number>>(() => new Set());
+  const groups = history ? groupHistory(history, editor.current().revision, new Set(publishedRevisions)) : [];
   useEffect(() => {
     if (history) historyHeading.current?.focus();
   }, [history]);
   const closeHistory = () => {
     setHistory(null);
     setSelectedRevision(null);
+    setExpanded(new Set());
     historyButton.current?.focus();
   };
   const run = async (action: () => Promise<unknown>) => {
@@ -278,7 +285,8 @@ export function DraftEditor({
             void run(async () => {
               const items = await api.revisions(draft.id);
               setHistory(items);
-              setSelectedRevision(items[0] ?? null);
+              const first = groupHistory(items, editor.current().revision, new Set(publishedRevisions))[0];
+              setSelectedRevision(first?.head.revision ?? items[0] ?? null);
             })
           }
         >
@@ -451,25 +459,59 @@ export function DraftEditor({
           </header>
           <div className="history-body">
             <div className="history-list" role="group" aria-label="版本列表">
-              {history.map((item) => (
-                <button
-                  type="button"
-                  key={item.revision}
-                  aria-pressed={selectedRevision?.revision === item.revision}
-                  className={selectedRevision?.revision === item.revision ? "active" : ""}
-                  onClick={() => setSelectedRevision(item)}
-                >
-                  <span>
-                    版本 {item.revision}
-                    {item.revision === editor.current().revision ? " · 当前" : ""}
-                  </span>
-                  <small>{new Date(item.savedAt).toLocaleString("zh-CN")}</small>
-                </button>
-              ))}
+              {groups.map((group) => {
+                const open = expanded.has(group.head.revision.revision);
+                const row = (entry: (typeof group)["head"], nested: boolean) => (
+                  <button
+                    type="button"
+                    key={entry.revision.revision}
+                    aria-pressed={selectedRevision?.revision === entry.revision.revision}
+                    className={(selectedRevision?.revision === entry.revision.revision ? "active" : "") + (nested ? " nested" : "")}
+                    onClick={() => setSelectedRevision(entry.revision)}
+                  >
+                    <span>
+                      版本 {entry.revision.revision}
+                      {entry.current ? " · 当前" : ""}
+                      {entry.published ? " · 已发布" : ""}
+                    </span>
+                    <small>{nested ? new Date(entry.revision.savedAt).toLocaleTimeString("zh-CN") : sessionTime(group)}</small>
+                    <small>{entrySummary(entry)}</small>
+                  </button>
+                );
+                return (
+                  <div className="history-group" key={group.head.revision.revision}>
+                    {row(group.head, false)}
+                    {group.older.length > 0 && (
+                      <button
+                        type="button"
+                        className="history-more"
+                        aria-expanded={open}
+                        onClick={() =>
+                          setExpanded((current) => {
+                            const next = new Set(current);
+                            if (open) next.delete(group.head.revision.revision);
+                            else next.add(group.head.revision.revision);
+                            return next;
+                          })
+                        }
+                      >
+                        {open ? "收起" : `同一次编辑中另有 ${group.older.length} 个自动保存`}
+                      </button>
+                    )}
+                    {open && group.older.map((entry) => row(entry, true))}
+                  </div>
+                );
+              })}
             </div>
             <div className="history-preview">
               {selectedRevision ? (
-                <Markdown text={selectedRevision.body} />
+                <>
+                  {/* The body's own top heading already names the article; only add the title when it has none. */}
+                  {!/^\s*#\s/.test(selectedRevision.body) && (
+                    <h4 className="history-title">{selectedRevision.title || "未命名稿件"}</h4>
+                  )}
+                  <Markdown text={selectedRevision.body} />
+                </>
               ) : (
                 <p className="history-empty">还没有保存过的版本。</p>
               )}

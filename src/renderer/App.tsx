@@ -413,6 +413,9 @@ export function App() {
                   }}
                   onArchive={archiveDraft}
                   onDelete={api.removeDraft ? requestDelete : undefined}
+                  publishedRevisions={data.publications
+                    .filter((item) => item.draftId === active.id)
+                    .map((item) => item.draftRevision)}
                   compact={compact}
                   listCollapsed={listCollapsed}
                   onToggleList={() => setListCollapsed((value) => !value)}
