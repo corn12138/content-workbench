@@ -17,6 +17,19 @@ pub struct ParsedFeed {
     pub items: Vec<ParsedEntry>,
 }
 
+/// Many RSS 2.0 feeds put the whole article in `<description>` (Atom: `<summary>`). Treat an HTML
+/// summary as article text only when it clearly is one: long enough, or with article structure.
+/// Short or plain-text summaries stay summaries. The reader still says this may not be the full page.
+fn looks_like_article(html: &str, text: &str) -> bool {
+    static BLOCKS: LazyLock<Regex> = LazyLock::new(|| {
+        Regex::new(r"(?i)<(?:h[1-6]|pre|table|img|figure|blockquote)\b").unwrap()
+    });
+    static PARAGRAPHS: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"(?i)<p\b").unwrap());
+    text.chars().filter(|c| !c.is_whitespace()).count() >= 600
+        || BLOCKS.is_match(html)
+        || PARAGRAPHS.find_iter(html).count() >= 3
+}
+
 fn plain(value: &str, limit: usize) -> String {
     static ACTIVE: LazyLock<Regex> = LazyLock::new(|| {
         Regex::new(r"(?is)<script\b[^>]*>.*?</script\s*>|<style\b[^>]*>.*?</style\s*>").unwrap()
@@ -103,6 +116,14 @@ pub fn parse(bytes: &[u8], source: &Url) -> Result<ParsedFeed, String> {
                     plain(&value, 20_000)
                 } else {
                     value.chars().take(20_000).collect()
+                };
+                let kind = if kind == ContentKind::Summary
+                    && format == ContentFormat::Html
+                    && looks_like_article(&value, &summary)
+                {
+                    ContentKind::Body
+                } else {
+                    kind
                 };
                 let truncated = value.chars().count() > 100_000;
                 (
