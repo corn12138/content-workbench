@@ -30,6 +30,7 @@ fn entry_limit(name: &str) -> Result<usize, String> {
         "manifest.json" => 1024 * 1024,
         "core.json" => super::validation::MAX_BACKUP_BYTES,
         "library.json" => MAX_LIBRARY_BYTES,
+        "workflow.json" => super::workflow_backup::MAX_WORKFLOW_BYTES,
         _ if name
             .strip_prefix("assets/")
             .is_some_and(super::assets::valid_name) =>
@@ -75,7 +76,7 @@ pub fn pack(mut files: Files) -> Result<Vec<u8>, String> {
         .collect();
     let manifest = Manifest {
         format: "content-workbench".into(),
-        version: 2,
+        version: 4,
         entries,
     };
     files.insert(
@@ -126,7 +127,7 @@ pub fn unpack(bytes: &[u8]) -> Result<Files, String> {
         serde_json::from_slice(&files.remove("manifest.json").ok_or("备份缺少校验清单。")?)
             .map_err(|_| "备份清单无效。")?;
     if manifest.format != "content-workbench"
-        || manifest.version != 2
+        || !matches!(manifest.version, 2..=4)
         || manifest.entries.len() != files.len()
     {
         return Err("备份版本或文件清单不匹配。".into());
@@ -137,6 +138,59 @@ pub fn unpack(bytes: &[u8]) -> Result<Files, String> {
         {
             return Err("备份校验失败，当前资料未修改。".into());
         }
+    }
+    Ok(files)
+}
+
+/// Reads an exported article bundle (`article.md` plus `assets/<sha256>.<ext>`) into memory.
+/// Only whitelisted names are accepted and nothing is extracted to the file system.
+pub fn read_article_zip(bytes: &[u8]) -> Result<Files, String> {
+    if bytes.len() > MAX_ARCHIVE {
+        return Err("文章包过大。".into());
+    }
+    let mut archive = ZipArchive::new(Cursor::new(bytes)).map_err(|_| "文章包无法读取。")?;
+    if archive.len() > MAX_FILES {
+        return Err("文章包文件数量过多。".into());
+    }
+    let mut files = Files::new();
+    let mut total = 0;
+    for index in 0..archive.len() {
+        let mut file = archive.by_index(index).map_err(|_| "文章包内容无法读取。")?;
+        let name = file.name().map_err(|_| "文章包文件名无效。")?.into_owned();
+        if file.is_dir() {
+            continue;
+        }
+        let limit = match name.as_str() {
+            "article.md" => 2_000_000,
+            _ if name
+                .strip_prefix("assets/")
+                .is_some_and(super::assets::valid_name) =>
+            {
+                super::assets::MAX_IMAGE_BYTES
+            }
+            _ => return Err("文章包含有未知或不安全的路径，未导入。".into()),
+        };
+        if file
+            .unix_mode()
+            .is_some_and(|mode| mode & 0o170000 == 0o120000)
+            || file.size() > limit as u64
+            || files.contains_key(&name)
+        {
+            return Err("文章包文件重复、过大或类型不安全。".into());
+        }
+        let mut content = Vec::new();
+        (&mut file)
+            .take((limit + 1) as u64)
+            .read_to_end(&mut content)
+            .map_err(|_| "文章包内容损坏。")?;
+        total += content.len();
+        if content.len() > limit || total > super::assets::MAX_ASSET_BYTES {
+            return Err("文章包展开后过大。".into());
+        }
+        files.insert(name, content);
+    }
+    if !files.contains_key("article.md") {
+        return Err("文章包缺少 article.md。".into());
     }
     Ok(files)
 }

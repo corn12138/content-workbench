@@ -22,3 +22,12 @@ export function initialXText(title: string, body: string) {
     ? candidate
     : title.trim();
 }
+
+
+const patterns = {
+  juejin: /^https:\/\/juejin\.cn\/post\/[0-9]+\/?(?:[?#].*)?$/,
+  x: /^https:\/\/x\.com\/[A-Za-z0-9_]{1,15}\/status\/[0-9]+\/?(?:[?#].*)?$/,
+};
+export function validPublicationURL(platform: "juejin" | "x", url: string) {
+  return patterns[platform].test(url.trim());
+}

@@ -66,6 +66,9 @@ test("aggregation searches cached content and notes, filters source without drop
     ],
   };
   assert.equal(readingIndex(library.items).get("a")?.feedId, "two");
+  library.items[0].content = { format: "html", kind: "summary", value: "<p>short</p>", truncated: false };
+  assert.equal(readingIndex(library.items).get("a")?.feedId, "one");
+
   assert.deepEqual(
     filterReadings(readings, library, "all", "one", "async").map((x) => x.id),
     ["a"],

@@ -118,7 +118,10 @@ pub fn comparison_step(
             let mut store = app_state.lock()?;
             store.put_asset(&asset)?;
             let source = url::Url::parse("https://example.com/feed.xml").unwrap();
-            let parsed = crate::feed_parse::parse(br#"<rss version="2.0"><channel><title>Native test feed</title><link>https://example.com</link><description>Fixture</description><item><title>Subscription article</title><link>https://example.com/rss-article</link><description>Offline subscription content</description></item></channel></rss>"#, &source)?;
+            let parsed = crate::feed_parse::parse(
+                include_bytes!("../../tests/fixtures/reading-feed.xml"),
+                &source,
+            )?;
             store.add_feed(source.as_str(), parsed)?;
             Ok(json!(format!("assets/{}", asset.name)))
         }
@@ -127,14 +130,42 @@ pub fn comparison_step(
             let mut store = app_state.lock()?;
             let before = store.snapshot()?;
             let library = store.library()?;
+            let workflow = store.workflow()?;
             let backup = store.export_full_backup()?;
             store.restore_full_backup(&backup)?;
-            if before != store.snapshot()? || library != store.library()? {
+            if before != store.snapshot()?
+                || library != store.library()?
+                || workflow != store.workflow()?
+            {
                 return Err("Full backup roundtrip changed content".into());
             }
             Ok(json!(true))
         }
-
+        // Exports the editor content the UI passes in with the production command logic, then imports
+        // the copy into a separate store inside the isolated fixture directory.
+        "export_current" => {
+            let input: crate::store::ExportInput =
+                serde_json::from_value(details.ok_or("Missing export input")?)
+                    .map_err(|e| e.to_string())?;
+            let exported = app.state::<AppState>().lock()?.export_current(&input)?;
+            let directory = state
+                .directory
+                .join(format!("export-check-{}", uuid::Uuid::new_v4()));
+            let mut fresh = crate::store::WorkbenchStore::open(directory)?;
+            let imported = if exported.bundled {
+                fresh.import_bundle("copy.zip", &exported.bytes)?
+            } else {
+                fresh.import_markdown(
+                    "copy.md",
+                    std::str::from_utf8(&exported.bytes).map_err(|e| e.to_string())?,
+                )?
+            };
+            Ok(json!({
+                "sameBody": imported.draft.body == input.body,
+                "bundled": exported.bundled,
+                "images": exported.images,
+            }))
+        }
         "clipboard_available" => Ok(json!(state
             .clipboard
             .lock()
@@ -147,6 +178,21 @@ pub fn comparison_step(
         "resize" => {
             window
                 .set_size(tauri::LogicalSize::new(850.0, 680.0))
+                .map_err(|e| e.to_string())?;
+            Ok(Value::Null)
+        }
+        // Responsive sweep: sizes stay within the window's configured minimum and a laptop-sized maximum.
+        "resize_to" => {
+            let size = |key: &str, min: f64, max: f64| {
+                details
+                    .as_ref()
+                    .and_then(|value| value[key].as_f64())
+                    .filter(|value| (min..=max).contains(value))
+                    .ok_or_else(|| format!("resize_to needs {key} between {min} and {max}"))
+            };
+            let (width, height) = (size("width", 800.0, 1600.0)?, size("height", 620.0, 1000.0)?);
+            window
+                .set_size(tauri::LogicalSize::new(width, height))
                 .map_err(|e| e.to_string())?;
             Ok(Value::Null)
         }
@@ -205,6 +251,13 @@ pub fn comparison_step(
                 window.close().map_err(|e| e.to_string())?;
             } else {
                 app.exit(0);
+            }
+            Ok(Value::Null)
+        }
+        // Test-step labels only (no user content), so a stalled run shows where it stopped.
+        "progress" => {
+            if let Some(label) = details.as_ref().and_then(Value::as_str) {
+                eprintln!("TAURI_SMOKE_PROGRESS {}", label.chars().take(120).collect::<String>());
             }
             Ok(Value::Null)
         }

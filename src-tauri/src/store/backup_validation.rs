@@ -128,6 +128,9 @@ fn valid_shape(backup: &Backup) -> bool {
                 && matches!(p.platform.as_str(), "juejin" | "x")
                 && matches!(p.confirmation.as_str(), "manual" | "api")
                 && validation::timestamp(&p.confirmed_at)
+                && p.corrected_at.as_ref().is_none_or(|t| {
+                    p.confirmation == "manual" && validation::timestamp(t)
+                })
         })
         && backup.readings.iter().all(|r| {
             id(&r.id)

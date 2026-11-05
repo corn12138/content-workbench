@@ -92,3 +92,31 @@ fn preview_prefers_full_content_preserves_paragraphs_and_never_executes_html() {
         "First paragraph\n\nSecond paragraph"
     );
 }
+
+#[test]
+fn structured_feeds_preserve_html_text_kind_and_bound_large_bodies() {
+    use crate::store::feed_models::{ContentFormat, ContentKind};
+    let xml = br#"<feed xmlns="http://www.w3.org/2005/Atom"><title>Feed</title><id>x</id><updated>2026-01-01T00:00:00Z</updated><entry><id>a</id><title>A</title><link href="https://example.com/a"/><content type="html">&lt;pre&gt;  indented
+    code&lt;/pre&gt;</content></entry><entry><id>b</id><title>B</title><link href="https://example.com/b"/><summary type="text">Vec&lt;T&gt; **literal**</summary></entry></feed>"#;
+    let parsed = parse(xml, &Url::parse("https://example.com/feed").unwrap()).unwrap();
+    let html = parsed.items[0].content.as_ref().unwrap();
+    assert_eq!(html.format, ContentFormat::Html);
+    assert_eq!(html.kind, ContentKind::Body);
+    assert!(html.value.contains("  indented\n    code"));
+    let text = parsed.items[1].content.as_ref().unwrap();
+    assert_eq!(text.format, ContentFormat::Text);
+    assert_eq!(text.kind, ContentKind::Summary);
+    assert_eq!(text.value, "Vec<T> **literal**");
+    let large = format!(
+        r#"<rss version="2.0"><channel><title>Feed</title><link>https://example.com</link><description>x</description><item><link>https://example.com/c</link><description>{}</description></item></channel></rss>"#,
+        "字".repeat(100_001)
+    );
+    let parsed = parse(
+        large.as_bytes(),
+        &Url::parse("https://example.com/feed").unwrap(),
+    )
+    .unwrap();
+    let content = parsed.items[0].content.as_ref().unwrap();
+    assert!(content.truncated);
+    assert_eq!(content.value.chars().count(), 100_000);
+}

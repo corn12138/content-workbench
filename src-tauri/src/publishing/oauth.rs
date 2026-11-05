@@ -21,7 +21,7 @@ pub fn random_secret() -> String {
 pub fn challenge(verifier: &str) -> String {
     URL_SAFE_NO_PAD.encode(Sha256::digest(verifier.as_bytes()))
 }
-pub fn authorize(client_id: &str, state: &str, verifier: &str) -> Result<Url, String> {
+pub fn valid_client_id(client_id: &str) -> Result<(), String> {
     if client_id.is_empty()
         || client_id.len() > 256
         || !client_id
@@ -30,6 +30,10 @@ pub fn authorize(client_id: &str, state: &str, verifier: &str) -> Result<Url, St
     {
         return Err("请填写 Native App 的公开 Client ID，不是 Client Secret 或访问令牌。".into());
     }
+    Ok(())
+}
+pub fn authorize(client_id: &str, state: &str, verifier: &str) -> Result<Url, String> {
+    valid_client_id(client_id)?;
     let mut url = Url::parse("https://x.com/i/oauth2/authorize").unwrap();
     url.query_pairs_mut().extend_pairs([
         ("response_type", "code"),

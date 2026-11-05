@@ -72,3 +72,64 @@ pub fn profile(token: &str) -> Result<(String, String), String> {
         .ok_or("X 未返回有效账号名。")?;
     Ok((id.into(), username.into()))
 }
+
+/// Maps X `public_metrics` to stored metric names. A counter X does not return stays unknown (None);
+/// only numbers present in the response become values, including an explicit 0.
+pub fn public_metrics(
+    value: &Value,
+    expected_id: &str,
+) -> Result<std::collections::BTreeMap<String, Option<i64>>, String> {
+    if value["data"]["id"].as_str() != Some(expected_id) {
+        return Err("X 返回的作品与记录不一致，本次数据未保存。".into());
+    }
+    let metrics = value["data"]["public_metrics"]
+        .as_object()
+        .ok_or("X 没有返回这条作品的公开数据。")?;
+    let read = |key: &str| {
+        metrics
+            .get(key)
+            .and_then(Value::as_i64)
+            .filter(|n| (0..=9_007_199_254_740_991).contains(n))
+    };
+    Ok([
+        ("impressions", "impression_count"),
+        ("likes", "like_count"),
+        ("replies", "reply_count"),
+        ("reposts", "retweet_count"),
+        ("quotes", "quote_count"),
+        ("bookmarks", "bookmark_count"),
+    ]
+    .into_iter()
+    .map(|(name, key)| (name.to_string(), read(key)))
+    .collect())
+}
+
+pub fn metrics_error(status: u16) -> String {
+    match status {
+        401 => "X 授权已失效，请重新连接账号后再刷新。",
+        402 => "X API 额度不足，读取数据需要可用的 API 额度。",
+        403 => "当前授权没有读取这条作品数据的权限。",
+        404 => "X 上找不到这条作品，可能已删除或不可见。",
+        429 => "X 请求过于频繁，请稍后再刷新。",
+        _ => "X 服务暂时不可用，请稍后再刷新。",
+    }
+    .into()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn metrics_keep_unknown_and_zero_apart_and_check_identity() {
+        let sample = serde_json::json!({"data":{"id":"123","text":"ignored","public_metrics":{"impression_count":0,"like_count":5,"reply_count":2,"retweet_count":1,"quote_count":0}}});
+        let metrics = public_metrics(&sample, "123").unwrap();
+        assert_eq!(metrics["impressions"], Some(0));
+        assert_eq!(metrics["likes"], Some(5));
+        assert_eq!(metrics["bookmarks"], None);
+        assert!(public_metrics(&sample, "999").is_err());
+        assert!(public_metrics(&serde_json::json!({"data":{"id":"123"}}), "123").is_err());
+        let negative = serde_json::json!({"data":{"id":"1","public_metrics":{"like_count":-1}}});
+        assert_eq!(public_metrics(&negative, "1").unwrap()["likes"], None);
+        assert!(metrics_error(403).contains("权限"));
+    }
+}

@@ -6,6 +6,8 @@ export type ReadingSaveState = "saved" | "pending" | "saving" | "error";
 
 interface EditorOptions {
   items: Reading[];
+  /** Article to reopen first (last read), when it still exists. */
+  preferredId?: string;
   onRefresh: () => Promise<void>;
   notify: (message: string) => void;
   registerFlush: (flush: () => Promise<void>) => void;
@@ -94,8 +96,10 @@ export function useReadingEditor(options: EditorOptions) {
 
   useEffect(() => {
     if (!current.current && options.items.length) {
-      current.current = options.items[0];
-      setRecord(options.items[0]);
+      const first =
+        options.items.find((item) => item.id === handlers.current.preferredId) ?? options.items[0];
+      current.current = first;
+      setRecord(first);
     }
   }, [options.items]);
 

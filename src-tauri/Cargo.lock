@@ -588,7 +588,7 @@ dependencies = [
 
 [[package]]
 name = "content-workbench-tauri"
-version = "0.4.0"
+version = "0.5.0"
 dependencies = [
  "base64 0.22.1",
  "chrono",
@@ -598,6 +598,7 @@ dependencies = [
  "image",
  "percent-encoding",
  "pulldown-cmark",
+ "quick-xml 0.42.0",
  "regex",
  "reqwest",
  "rusqlite",

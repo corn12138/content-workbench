@@ -65,7 +65,8 @@ await writeFile(
   JSON.stringify(
     {
       version,
-      notes: "掘金目录适配、图片准备与可回退的应用更新。详情见发行说明。",
+      // Short in-app summary; the GitHub release notes carry the details.
+      notes: process.env.WORKBENCH_UPDATE_NOTES || `内容工作台 ${version}。详情见发行说明。`,
       pub_date: new Date().toISOString(),
       platforms: {
         "darwin-aarch64": {

@@ -64,3 +64,13 @@ Rust 提示对应 `proc-macro-error`、`zbus_names`、`zvariant`、`zvariant_der
 本轮 Node 22 项、Rust 40 项离线测试、14 项数据对照和原生关闭/退出两阶段通过；原生测试额外验证三处预览一致性与九类掘金实测字号/行高。剪贴板专项仍标记为跳过。完整 UI 像素与平台最终发布页不属于已通过项。
 
 发布保留 v0.2.0、v0.1.0 和 Electron 入口；schema 3 回退方法见升级文档。最终发行包启动、源码/包扫描、下载校验与远端提交一致性必须在 Release 中据实记录。
+
+## 0.5.0 发行范围
+
+功能补齐（发布准备、X 网页辅助、OPML 与笔记整理、作品反馈、备份回执与恢复预检）与自动更新（后台下载、退出时安装）。逐项状态见[功能补齐报告](functional-completion-report.md)。
+
+本机检查（macOS arm64，候选提交见 Release）：`npm ci`、typecheck、Node 57 项、前端与 Electron 构建、`cargo test --locked` 60 项通过（4 项忽略：真实发行包安装、两项联网、预览样本）、14 项数据对照、源码审计、原生两阶段 smoke（redClose / menuQuit）均通过。数据对照第一次在机器高负载时因探针超时退出，单独重跑通过。`npm audit` 因审计服务返回错误未能完成，以 CI 结果为准。
+
+发行包：`release:mac` 构建的 0.5.0 应用通过 `codesign --verify --deep --strict`；用独立临时资料目录启动成功并建立 schema 5；应用包内没有本机用户路径、数据库、日志或备份，gitleaks 未发现泄露；许可证与第三方声明在 `Contents/Resources/legal`。签名更新包通过 `packaged_release_installs_and_preserves_rollback`（临时目录安装、签名与版本、旧应用与资料备份）。
+
+未验证：从已安装的 0.4.0 经线上通道更新到 0.5.0、退出时安装在真实安装位置的执行与重新打开、X 官方 API 真实账号、掘金最终发布页。这些需在草稿发行公开后实际验证。

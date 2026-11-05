@@ -35,6 +35,10 @@ pub struct AccountStatus {
     connected: bool,
     username: Option<String>,
     client_id: String,
+    /// "connected", "saved", "default" (maintainer build) or "none".
+    client_source: &'static str,
+    /// Stored credentials have expired and cannot be refreshed; the user must connect again.
+    needs_reconnect: bool,
     callback: &'static str,
 }
 #[derive(Deserialize)]
@@ -54,17 +58,28 @@ pub struct Receipt {
     warning: Option<String>,
 }
 
-fn status(credentials: Option<&Credentials>) -> AccountStatus {
+fn status(credentials: Option<&Credentials>, saved: Option<&str>) -> AccountStatus {
+    let default = option_env!("WORKBENCH_X_CLIENT_ID").unwrap_or_default();
+    let saved = saved.filter(|s| !s.is_empty());
+    let (client_id, client_source) = match (credentials, saved) {
+        (Some(c), _) => (c.client_id.clone(), "connected"),
+        (None, Some(id)) => (id.to_owned(), "saved"),
+        (None, None) if !default.is_empty() => (default.to_owned(), "default"),
+        _ => (String::new(), "none"),
+    };
     AccountStatus {
         connected: credentials.is_some(),
         username: credentials.map(|c| c.username.clone()),
-        client_id: credentials.map(|c| c.client_id.clone()).unwrap_or_else(|| {
-            option_env!("WORKBENCH_X_CLIENT_ID")
-                .unwrap_or_default()
-                .into()
+        client_id,
+        client_source,
+        needs_reconnect: credentials.is_some_and(|c| {
+            c.refresh_token.is_none() && c.expires_at <= chrono::Utc::now().timestamp() + 60
         }),
         callback: oauth::CALLBACK,
     }
+}
+fn saved_client(directory: &std::path::Path) -> Option<String> {
+    crate::local_settings::read(directory).x_client_id
 }
 fn apply_token(
     value: serde_json::Value,
@@ -140,8 +155,10 @@ pub async fn x_account(window: WebviewWindow, app: AppHandle) -> Result<AccountS
             .operation
             .try_lock()
             .map_err(|_| "平台操作正在进行，请稍后。")?;
+        let directory = &app.state::<AppState>().directory;
         Ok(status(
-            vault::read(&app.state::<AppState>().directory)?.as_ref(),
+            vault::read(directory)?.as_ref(),
+            saved_client(directory).as_deref(),
         ))
     })
     .await
@@ -171,6 +188,9 @@ pub async fn x_connect(
         let nonce = oauth::random_secret();
         let client_id = client_id.trim().to_string();
         let url = oauth::authorize(&client_id, &nonce, &verifier)?;
+        let directory = app.state::<AppState>().directory.clone();
+        // The public Client ID survives a cancelled, failed or timed-out authorization.
+        crate::local_settings::update(&directory, |s| s.x_client_id = Some(client_id.clone()))?;
         // X requires an exact registered callback; bind only loopback, before opening the browser.
         let listener = TcpListener::bind("127.0.0.1:34187")
             .map_err(|_| "授权端口被占用，请关闭其他授权窗口后重试。")?;
@@ -193,12 +213,99 @@ pub async fn x_connect(
         if state.epoch.load(Ordering::SeqCst) != generation {
             return Err("授权已取消，未保存本机凭证；如需撤销，请前往 X 的已连接应用。".into());
         }
-        vault::save(&app.state::<AppState>().directory, &credentials)?;
-        Ok(status(Some(&credentials)))
+        vault::save(&directory, &credentials)?;
+        Ok(status(Some(&credentials), Some(&credentials.client_id)))
     })
     .await
     .map_err(|_| "X 授权未完成，请重新连接。".to_string())?
 }
+/// Saves (or clears, when empty) the public Client ID without starting authorization.
+#[tauri::command]
+pub async fn x_save_client_id(
+    window: WebviewWindow,
+    app: AppHandle,
+    client_id: String,
+) -> Result<AccountStatus, String> {
+    trusted(&window)?;
+    tauri::async_runtime::spawn_blocking(move || {
+        let client_id = client_id.trim().to_string();
+        if !client_id.is_empty() {
+            oauth::valid_client_id(&client_id)?;
+        }
+        let state = app.state::<PublishingState>();
+        let _guard = state
+            .operation
+            .try_lock()
+            .map_err(|_| "平台操作正在进行，请稍后。")?;
+        let directory = &app.state::<AppState>().directory;
+        crate::local_settings::update(directory, |s| {
+            s.x_client_id = (!client_id.is_empty()).then(|| client_id.clone())
+        })?;
+        Ok(status(
+            vault::read(directory)?.as_ref(),
+            saved_client(directory).as_deref(),
+        ))
+    })
+    .await
+    .map_err(|_| "未能保存 X 配置。".to_string())?
+}
+
+/// Reads public metrics for one recorded X post with the connected account. Each call is a single
+/// request, serialized with other platform operations; nothing is retried automatically.
+#[tauri::command]
+pub async fn x_metrics(
+    window: WebviewWindow,
+    app: AppHandle,
+    publication_id: String,
+) -> Result<crate::store::workflow_models::Feedback, String> {
+    trusted(&window)?;
+    tauri::async_runtime::spawn_blocking(move || {
+        let publishing = app.state::<PublishingState>();
+        let _guard = publishing
+            .operation
+            .try_lock()
+            .map_err(|_| "平台操作正在进行，请稍后再刷新。")?;
+        let state = app.state::<AppState>();
+        let epoch = state.library_epoch.load(Ordering::SeqCst);
+        let publication = state
+            .lock()?
+            .snapshot()?
+            .publications
+            .into_iter()
+            .find(|p| p.id == publication_id)
+            .ok_or("这条发布记录已不存在。")?;
+        if publication.platform != "x" {
+            return Err("只有 X 作品支持读取平台数据。".into());
+        }
+        let post = publication
+            .url
+            .rsplit('/')
+            .next()
+            .filter(|id| !id.is_empty() && id.len() <= 30 && id.bytes().all(|b| b.is_ascii_digit()))
+            .ok_or("作品链接无法识别。")?
+            .to_string();
+        let credentials = usable(&state.directory)?;
+        let response = http::client()?
+            .get(format!(
+                "https://api.x.com/2/tweets/{post}?tweet.fields=public_metrics"
+            ))
+            .bearer_auth(&credentials.access_token)
+            .send()
+            .map_err(|_| "无法连接 X，请稍后再刷新。")?;
+        if !response.status().is_success() {
+            return Err(http::metrics_error(response.status().as_u16()));
+        }
+        let metrics = http::public_metrics(&http::json(response)?, &post)?;
+        let mut store = state.lock()?;
+        if state.library_epoch.load(Ordering::SeqCst) != epoch {
+            return Err("资料已恢复，本次数据未保存。".into());
+        }
+        store.save_api_feedback(&publication.id, &publication.url, metrics)
+    })
+    .await
+    .map_err(|_| "读取 X 数据未完成。".to_string())?
+}
+
 #[tauri::command]
 pub async fn x_disconnect(window: WebviewWindow, app: AppHandle) -> Result<String, String> {
     trusted(&window)?;
@@ -319,7 +426,7 @@ mod tests {
             user_id: "123".into(),
             username: "example".into(),
         };
-        let text = serde_json::to_string(&status(Some(&c))).unwrap();
+        let text = serde_json::to_string(&status(Some(&c), None)).unwrap();
         assert!(!text.contains("synthetic"));
         let refreshed = apply_token(
             serde_json::json!({"access_token":"new", "token_type":"bearer", "expires_in":7200}),

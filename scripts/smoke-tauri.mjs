@@ -33,7 +33,7 @@ async function runPhase(phase) {
   });
   let log = "";
   for (const stream of [child.stdout, child.stderr]) stream.on("data", (chunk) => { log = (log + chunk).slice(-8000); });
-  const timeout = setTimeout(() => child.kill("SIGKILL"), 90000);
+  const timeout = setTimeout(() => child.kill("SIGKILL"), 240000);
   const code = await new Promise((resolve, reject) => { child.on("error", reject); child.on("exit", resolve); }).finally(() => clearTimeout(timeout));
   let report;
   try { report = JSON.parse(await readFile(join(data, `smoke-${phase}.json`), "utf8")); }

@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useReducer, useRef, useState } from "react";
+import { initialUpdateState, installOnQuit, updateReducer } from "./updateState";
 import { api, errorMessage } from "../api";
 
 const preferenceKey = "workbench-auto-update-check";
@@ -22,14 +23,7 @@ export function useUpdates() {
   const [automatic, setAutomatic] = useState(
     () => read(preferenceKey) !== "off",
   );
-  const [available, setAvailable] = useState<{
-    version: string;
-    notes: string;
-  } | null>(null);
-  const [checking, setChecking] = useState(false);
-  const [installing, setInstalling] = useState(false);
-  const [message, setMessage] = useState("");
-  const [progress, setProgress] = useState("");
+  const [state, dispatch] = useReducer(updateReducer, initialUpdateState);
   const pending = useRef(false);
   const mounted = useRef(true);
   useEffect(() => {
@@ -38,25 +32,42 @@ export function useUpdates() {
       mounted.current = false;
     };
   }, []);
-  useEffect(() => api.onUpdateProgress?.(setProgress), []);
+  useEffect(
+    () => api.onUpdateProgress?.((progress) => dispatch({ type: "installProgress", progress })),
+    [],
+  );
   const check = useCallback(async (quiet = false) => {
     if (!api.checkUpdate || pending.current) return;
     pending.current = true;
-    setChecking(true);
-    if (!quiet) setMessage("");
+    dispatch({ type: "checkStart", quiet });
     write(checkedKey, String(Date.now()));
     try {
       const value = await api.checkUpdate();
-      if (!mounted.current) return;
-      setAvailable(value);
-      setMessage(value ? `发现新版本 ${value.version}` : "当前已是最新版本");
+      if (mounted.current) {
+        // A later check may find the same version again; allow one more background download then.
+        if (value && value.version !== attempted.current) attempted.current = null;
+        dispatch({ type: "checkSucceeded", value });
+      }
     } catch (error) {
-      if (mounted.current && !quiet) setMessage(errorMessage(error));
+      if (mounted.current) dispatch({ type: "checkFailed", message: errorMessage(error), quiet });
     } finally {
       pending.current = false;
-      if (mounted.current) setChecking(false);
     }
   }, []);
+  // Automatic updates download and verify a found version once in the background; installing waits
+  // for quit (or "restart now"). A failed download is not retried until the next check finds it again.
+  const attempted = useRef<string | null>(null);
+  const version = state.available?.version;
+  useEffect(() => {
+    if (!automatic || !version || !api.downloadUpdate || state.staged === version) return;
+    if (attempted.current === version) return;
+    attempted.current = version;
+    dispatch({ type: "downloadStart" });
+    api.downloadUpdate(version).then(
+      () => mounted.current && dispatch({ type: "downloadSucceeded", version }),
+      () => mounted.current && dispatch({ type: "downloadFailed" }),
+    );
+  }, [automatic, version, state.staged]);
   useEffect(() => {
     if (!automatic || !api.checkUpdate) return;
     const tick = () => {
@@ -72,26 +83,29 @@ export function useUpdates() {
     };
   }, [automatic, check]);
   const install = async () => {
-    if (!available || !api.installUpdate || pending.current) return;
+    if (!state.available || !api.installUpdate || pending.current) return;
     pending.current = true;
-    setInstalling(true);
-    setProgress("正在准备升级…");
+    dispatch({ type: "installStart" });
     try {
-      await api.installUpdate(available.version);
+      await api.installUpdate(state.available.version);
+      if (mounted.current) dispatch({ type: "installSettled" });
     } catch (error) {
-      if (mounted.current) setMessage(errorMessage(error));
+      if (mounted.current) dispatch({ type: "installFailed", message: errorMessage(error) });
     } finally {
       pending.current = false;
-      if (mounted.current) setInstalling(false);
     }
   };
   return {
     automatic,
-    available,
-    checking,
-    installing,
-    message,
-    progress,
+    state,
+    available: state.available,
+    checking: state.checking,
+    installing: state.install.running,
+    /** Version that will be installed when the user quits, or null. */
+    installOnQuit: installOnQuit(state, automatic),
+    beginQuitInstall: () => dispatch({ type: "installStart" }),
+    quitInstallFailed: (message: string) => dispatch({ type: "quitInstallFailed", message }),
+    progress: state.install.progress,
     check,
     install,
     setAutomatic(value: boolean) {

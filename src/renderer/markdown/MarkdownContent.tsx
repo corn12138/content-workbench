@@ -1,3 +1,7 @@
+import { Fragment } from "react";
+import { jsx, jsxs } from "react/jsx-runtime";
+import { toJsxRuntime } from "hast-util-to-jsx-runtime";
+import { feedHtml } from "../reading/feedHtml";
 import { memo, useId, useMemo, useRef, useState } from "react";
 import ReactMarkdown, { type Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -13,8 +17,12 @@ import { externalURL, previewSchema, scopedAnchors } from "./pipeline";
 
 export const MarkdownContent = memo(function MarkdownContent({
   text,
+  html = false,
+  baseURL = "",
 }: {
   text: string;
+  html?: boolean;
+  baseURL?: string;
 }) {
   const scope = useId();
   const prefix = `md-${scope.replace(/[^a-zA-Z0-9_-]/g, "")}-`;
@@ -78,7 +86,9 @@ export const MarkdownContent = memo(function MarkdownContent({
           title={title}
         />
       ),
-      pre: CodeBlock,
+      pre: html
+        ? ({ node: _node, ...props }) => <pre {...props} tabIndex={0} />
+        : CodeBlock,
       table: ({ node: _node, ...props }) => (
         <div
           className="md-table-scroll"
@@ -90,31 +100,49 @@ export const MarkdownContent = memo(function MarkdownContent({
         </div>
       ),
     }),
-    [],
+    [html],
   );
+  const renderedHtml = useMemo(() => {
+    if (!html) return null;
+    try {
+      return toJsxRuntime(feedHtml(text, baseURL, prefix), {
+        Fragment,
+        jsx,
+        jsxs,
+        components,
+        passNode: true,
+      });
+    } catch {
+      return <p role="status">这篇订阅的排版暂时无法展示，请打开原文阅读。</p>;
+    }
+  }, [html, text, baseURL, prefix, components]);
   return (
     <div className="markdown" ref={root}>
-      <ReactMarkdown
-        remarkPlugins={[remarkGfm, remarkMath]}
-        remarkRehypeOptions={{
-          footnoteLabel: "注释",
-          footnoteBackLabel: "返回正文",
-        }}
-        rehypePlugins={[
-          rehypeRaw,
-          // Sanitize untrusted HTML first; later plugins only generate trusted highlight/math markup.
-          [rehypeSanitize, previewSchema],
-          [rehypeHighlight, { detect: false, ignoreMissing: true }],
-          [
-            rehypeKatex,
-            { trust: false, strict: "warn", maxExpand: 1000, maxSize: 20 },
-          ],
-          [scopedAnchors, { prefix }],
-        ]}
-        components={components}
-      >
-        {text.trim() ? text : "正文还没有内容。"}
-      </ReactMarkdown>
+      {html ? (
+        renderedHtml
+      ) : (
+        <ReactMarkdown
+          remarkPlugins={[remarkGfm, remarkMath]}
+          remarkRehypeOptions={{
+            footnoteLabel: "注释",
+            footnoteBackLabel: "返回正文",
+          }}
+          rehypePlugins={[
+            rehypeRaw,
+            // Sanitize untrusted HTML first; later plugins only generate trusted highlight/math markup.
+            [rehypeSanitize, previewSchema],
+            [rehypeHighlight, { detect: false, ignoreMissing: true }],
+            [
+              rehypeKatex,
+              { trust: false, strict: "warn", maxExpand: 1000, maxSize: 20 },
+            ],
+            [scopedAnchors, { prefix }],
+          ]}
+          components={components}
+        >
+          {text.trim() ? text : "正文还没有内容。"}
+        </ReactMarkdown>
+      )}
       {error && (
         <p className="md-link-error" role="alert">
           {error}

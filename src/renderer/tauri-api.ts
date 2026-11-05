@@ -1,6 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
-import type { WorkbenchAPI } from "../shared/contracts";
+import type { UpdateProgress, WorkbenchAPI } from "../shared/contracts";
 
 const pending = new Set<Promise<unknown>>();
 
@@ -23,11 +23,14 @@ async function call<T>(
 export async function createTauriAPI(): Promise<WorkbenchAPI> {
   const closeHandlers = new Set<(attempt?: number) => void>();
   const cancelHandlers = new Set<() => void>();
-  const updateHandlers = new Set<(message: string) => void>();
-  const stopUpdate = await listen<string>(
+  const updateHandlers = new Set<(progress: UpdateProgress) => void>();
+  const stopUpdate = await listen<UpdateProgress | string>(
     "workbench:update-progress",
     (event) => {
-      for (const handler of updateHandlers) handler(event.payload);
+      const payload = event.payload;
+      const progress: UpdateProgress =
+        typeof payload === "string" ? { stage: "unknown", message: payload } : payload;
+      for (const handler of updateHandlers) handler(progress);
     },
   );
   window.addEventListener("unload", stopUpdate, { once: true });
@@ -50,6 +53,12 @@ export async function createTauriAPI(): Promise<WorkbenchAPI> {
       return call("install_update", { version });
     },
     openUpdateBackups: () => call("open_update_backups"),
+    // Background download never holds the close barrier; it does not touch the library.
+    downloadUpdate: (version) => call("download_update", { version }, false),
+    async finishCloseWithUpdate(attempt, version) {
+      while (pending.size) await Promise.allSettled([...pending]);
+      await call("finish_close_with_update", { attempt, version }, false);
+    },
     onUpdateProgress(handler) {
       updateHandlers.add(handler);
       return () => {
@@ -57,6 +66,26 @@ export async function createTauriAPI(): Promise<WorkbenchAPI> {
       };
     },
     prepareImages: (id, revision) => call("prepare_images", { id, revision }),
+    openPreparedImages: (draftId) => call("open_prepared_images", { draftId }, false),
+    workflow: () => call("workflow"),
+    savePreparation: (input) => call("save_preparation", { input }),
+    clearPreparation: (draftId, platform) => call("clear_preparation", { draftId, platform }),
+    updatePublication: (id, url) => call("update_publication", { id, url }),
+    removePublication: (id) => call("remove_publication", { id }),
+    saveFeedback: (input) => call("save_feedback", { input }),
+    deleteFeedback: (id) => call("delete_feedback", { id }),
+    composeNotes: (ids) => call("compose_notes", { ids }),
+    exportCurrent: (input) => call("export_current", { input }),
+    opmlPreview: () => call("opml_preview"),
+    exportOpml: () => call("export_opml"),
+    createBackup: () => call("create_backup"),
+    lastBackup: () => call("last_backup", undefined, false),
+    revealBackup: () => call("reveal_backup", undefined, false),
+    inspectBackup: () => call("inspect_backup"),
+    cancelRestore: () => call("cancel_restore", undefined, false),
+    restoreInspected: (token) => call("restore_inspected", { token }),
+    xSaveClientId: (clientId) => call("x_save_client_id", { clientId }, false),
+    xMetrics: (publicationId) => call("x_metrics", { publicationId }, false),
     xAccount: () => call("x_account", undefined, false),
     xConnect: (clientId) => call("x_connect", { clientId }, false),
     xCancel: () => call("x_cancel", undefined, false),

@@ -1,8 +1,8 @@
 import type { Element, Root, RootContent } from "hast";
 import GithubSlugger from "github-slugger";
-import { defaultSchema } from "rehype-sanitize";
+import { defaultSchema, type Options } from "rehype-sanitize";
 
-export const previewSchema = {
+export const previewSchema: Options = {
   ...defaultSchema,
   strip: [
     ...(defaultSchema.strip || []),

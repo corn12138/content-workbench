@@ -112,6 +112,31 @@ export function registerIPC(
     await writeFile(selected.filePath, draft.body, "utf8");
     return true;
   });
+  // Exports the editor's current content (possibly unsaved). The Electron build has no image library,
+  // so stored image references are reported as missing rather than bundled.
+  handle("exportCurrent", async (input) => {
+    const value = z
+      .object({ title: z.string().max(200), body: z.string().max(1_000_000), project: z.string().max(80) })
+      .strict()
+      .parse(input);
+    const filename =
+      value.title.replace(/[/\\:*?"<>|\x00-\x1f]/g, "-").slice(0, 100).trim() || "未命名稿件";
+    const selected = await dialog.showSaveDialog(win, {
+      title: "另存当前内容",
+      defaultPath: `${filename}.md`,
+      filters: [{ name: "Markdown", extensions: ["md"] }],
+    });
+    if (selected.canceled || !selected.filePath) return null;
+    await writeFile(selected.filePath, value.body, "utf8");
+    const images = [...value.body.matchAll(/!\[[^\]]*\]\(\s*<?([^)\s>]+)/g)].map((m) => m[1]);
+    return {
+      filename: basename(selected.filePath),
+      bundled: false,
+      images: 0,
+      missing: images.filter((src) => !/^https?:\/\//i.test(src)).length,
+      remote: images.filter((src) => /^https?:\/\//i.test(src)).length,
+    };
+  });
   handle("backup", async () => {
     const selected = await dialog.showSaveDialog(win, {
       title: "备份全部资料",

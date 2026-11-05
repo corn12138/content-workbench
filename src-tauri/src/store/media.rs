@@ -174,6 +174,58 @@ impl WorkbenchStore {
         })
     }
 
+    /// Imports a bundle produced by "导出" (article.md + assets). Image names are content hashes and are
+    /// re-verified against their bytes before anything is stored.
+    pub fn import_bundle(&mut self, filename: &str, bytes: &[u8]) -> Result<ImportResult, String> {
+        let files = super::archive::read_article_zip(bytes)?;
+        let text = String::from_utf8(files["article.md"].clone())
+            .map_err(|_| "文章包中的 article.md 需为 UTF-8 编码。")?;
+        let mut assets = BTreeMap::new();
+        let mut warnings = Vec::new();
+        for image in images(&text) {
+            let Some(name) = managed_name(&image.destination) else {
+                if url::Url::parse(&image.destination).is_ok() {
+                    let note = "外链图片保留为原链接，未下载。".to_string();
+                    if !warnings.contains(&note) {
+                        warnings.push(note);
+                    }
+                }
+                continue;
+            };
+            if assets.contains_key(name) {
+                continue;
+            }
+            match files.get(&format!("assets/{name}")) {
+                Some(bytes) => {
+                    let asset = Asset::from_bytes(bytes.clone())?;
+                    if asset.name != name {
+                        return Err("文章包中的图片校验失败，未导入。".into());
+                    }
+                    assets.insert(name.to_owned(), asset);
+                }
+                None => {
+                    let note = "文章包缺少部分图片，相应位置会显示为缺失。".to_string();
+                    if !warnings.contains(&note) {
+                        warnings.push(note);
+                    }
+                }
+            }
+        }
+        let markdown_name = std::path::Path::new(filename)
+            .file_stem()
+            .and_then(|s| s.to_str())
+            .map(|s| format!("{s}.md"))
+            .unwrap_or_else(|| "文章.md".into());
+        self.transaction(|store| {
+            for asset in assets.values() {
+                store.put_asset(asset)?;
+            }
+            let mut imported = store.import_markdown(&markdown_name, &text)?;
+            imported.warnings = warnings;
+            Ok(imported)
+        })
+    }
+
     pub fn draft_assets(&self, id: &str) -> Result<Vec<Asset>, String> {
         let draft = self.get_draft(id)?;
         let mut assets = BTreeMap::new();
