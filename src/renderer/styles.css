@@ -1551,3 +1551,31 @@ textarea::placeholder {
   margin: 4px 0;
   padding-left: 18px;
 }
+
+/* ---------- Delete ---------- */
+.button.danger {
+  background: var(--cw-danger-text);
+  border-color: var(--cw-danger-text);
+  color: var(--cw-text-inverse);
+}
+.button.danger:hover:not(:disabled) {
+  filter: brightness(0.92);
+}
+.menu-items button.danger {
+  color: var(--cw-danger-text);
+}
+.menu-items .menu-divider {
+  height: 1px;
+  margin: 4px 6px;
+  background: var(--cw-border-subtle);
+}
+.context-menu {
+  z-index: var(--cw-z-menu);
+}
+.confirm-delete .confirm-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-top: 12px;
+  font-size: var(--cw-text-sm);
+}

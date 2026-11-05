@@ -52,7 +52,7 @@ impl WorkbenchStore {
         let mut preparations: Vec<Preparation> =
             self.all("SELECT payload FROM publish_preparations", [])?;
         preparations.sort_by(|a, b| b.updated_at.cmp(&a.updated_at));
-        let sources = self.all("SELECT payload FROM draft_sources ORDER BY draft_id", [])?;
+        let sources = self.kept_sources()?;
         let mut feedback: Vec<Feedback> = self.all("SELECT payload FROM feedback", [])?;
         feedback.sort_by(|a, b| {
             b.observed_at
@@ -63,6 +63,7 @@ impl WorkbenchStore {
             preparations,
             sources,
             feedback,
+            removed_drafts: self.removed_drafts()?,
         })
     }
 
@@ -386,7 +387,12 @@ impl WorkbenchStore {
             "SELECT payload FROM draft_sources WHERE compose_key = ?",
             [&key],
         )?;
-        if let Some(existing) = existing {
+        // A draft composed from the same notes but since deleted is not reused; its old link is released.
+        let stale = existing
+            .as_ref()
+            .filter(|e| self.get_draft(&e.draft_id).is_err())
+            .map(|e| e.draft_id.clone());
+        if let Some(existing) = existing.filter(|_| stale.is_none()) {
             let mut draft = self.get_draft(&existing.draft_id)?;
             if draft.archived {
                 self.archive_draft(&draft.id, false)?;
@@ -417,6 +423,12 @@ impl WorkbenchStore {
             return Err("所选笔记总长度超过单篇稿件上限，请减少选择。".into());
         }
         self.transaction(|store| {
+            if let Some(stale) = &stale {
+                store
+                    .connection
+                    .execute("DELETE FROM draft_sources WHERE draft_id = ?", [stale])
+                    .map_err(|e| e.to_string())?;
+            }
             let draft = store.save_draft(DraftInput {
                 id: None,
                 title: title.clone(),

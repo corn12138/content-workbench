@@ -134,7 +134,7 @@ impl WorkbenchStore {
         Ok(reading)
     }
 
-    fn get_reading(&self, id: &str) -> Result<Reading, String> {
+    pub(super) fn get_reading(&self, id: &str) -> Result<Reading, String> {
         validation::assert_id(id)?;
         self.one("SELECT payload FROM readings WHERE id = ?", [id])?
             .ok_or_else(|| "这条阅读资料不存在，请返回列表重新选择。".into())

@@ -31,6 +31,20 @@ pub fn archive_draft(
     state.lock()?.archive_draft(&id, archived)
 }
 #[tauri::command]
+pub fn remove_draft(window: WebviewWindow, state: State<AppState>, id: String) -> Result<(), String> {
+    trusted(&window)?;
+    state.lock()?.remove_draft(&id)
+}
+#[tauri::command]
+pub fn restore_removed_draft(
+    window: WebviewWindow,
+    state: State<AppState>,
+    id: String,
+) -> Result<Draft, String> {
+    trusted(&window)?;
+    state.lock()?.restore_removed_draft(&id)
+}
+#[tauri::command]
 pub fn revisions(
     window: WebviewWindow,
     state: State<AppState>,

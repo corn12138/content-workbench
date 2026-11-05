@@ -263,8 +263,13 @@ fn validate_files(files: &Files, kind: &str) -> Result<ValidatedBackup, String> 
     let summary = BackupSummary {
         format: kind.into(),
         exported_at: core.exported_at.clone(),
-        drafts: core.drafts.len(),
-        archived_drafts: core.drafts.iter().filter(|d| d.archived).count(),
+        // Deleted drafts kept for publication records are not counted as drafts the user will see.
+        drafts: core.drafts.len() - workflow.removed_drafts.len(),
+        archived_drafts: core
+            .drafts
+            .iter()
+            .filter(|d| d.archived && !workflow.removed_drafts.iter().any(|r| r.draft_id == d.id))
+            .count(),
         revisions: core.revisions.len(),
         publications: core.publications.len(),
         readings: core.readings.len(),

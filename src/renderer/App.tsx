@@ -13,6 +13,9 @@ import { ReadingView } from "./ReadingView";
 import { Sidebar, type View } from "./Sidebar";
 import { useUpdates } from "./updates/useUpdates";
 import { UpdateProgress } from "./updates/UpdateSection";
+import { ConfirmDelete } from "./deletion/ConfirmDelete";
+import { draftDeleteCopy } from "./deletion/deleteText";
+import { useDeleteShortcut } from "./deletion/useDeleteShortcut";
 
 const empty: Snapshot = { drafts: [], publications: [], readings: [] };
 const emptyWorkflow: Workflow = { preparations: [], sources: [], feedback: [] };
@@ -37,6 +40,7 @@ export function App() {
   // Set only by the explicit "新建" action; opening an old untitled draft never steals focus.
   const [freshDraft, setFreshDraft] = useState<string | null>(null);
   const [publishing, setPublishing] = useState<Draft | null>(null);
+  const [deleting, setDeleting] = useState<Draft | null>(null);
   const [publishBusy, setPublishBusy] = useState(false);
   const [listCollapsed, setListCollapsed] = useState(false);
   const [draftPane, setDraftPane] = useState<"list" | "detail">("detail");
@@ -234,7 +238,37 @@ export function App() {
           }),
       });
     });
+  const requestDelete = (draft: Draft) => {
+    if (!api.removeDraft || busy || publishBusy || actionPending.current) return;
+    setDeleting(draft);
+  };
+  const deleteDraft = (draft: Draft) =>
+    void action(async () => {
+      await api.removeDraft!(draft.id);
+      setDeleting(null);
+      if (selected === draft.id) {
+        resetEditor();
+        setSelected(null);
+      }
+      if (publishing?.id === draft.id) setPublishing(null);
+      await refresh();
+      // Undo only lifts the hidden marker; nothing is erased until the app opens the library again.
+      notify(`已删除《${draft.title || "未命名稿件"}》。`, {
+        label: "撤销",
+        run: () =>
+          void action(async () => {
+            const restored = await api.restoreRemovedDraft!(draft.id);
+            await chooseDraft(restored);
+            notify("已撤销删除");
+          }),
+      });
+    });
   const active = data.drafts.find((item) => item.id === selected);
+  useDeleteShortcut(
+    view === "drafts" && !publishing && active && !loading && !loadError && !restoredUnread
+      ? () => requestDelete(active)
+      : null,
+  );
   const shortcutState = useRef({ blocked: true, createDraft, importDraft });
   shortcutState.current = {
     blocked: busy || publishBusy || loading || !!loadError || restoredUnread || closing,
@@ -359,6 +393,8 @@ export function App() {
                   await chooseDraft({ ...draft, archived: false });
                 })
               }
+              onArchive={(draft) => void archiveDraft(draft.id)}
+              onDelete={api.removeDraft ? requestDelete : undefined}
             >
               {active && !active.archived && (
                 <DraftEditor
@@ -376,6 +412,7 @@ export function App() {
                     resetEditor();
                   }}
                   onArchive={archiveDraft}
+                  onDelete={api.removeDraft ? requestDelete : undefined}
                   compact={compact}
                   listCollapsed={listCollapsed}
                   onToggleList={() => setListCollapsed((value) => !value)}
@@ -393,6 +430,7 @@ export function App() {
               onDrafts={() => changeView("drafts")}
               onOpenDraft={(draft) => void action(() => chooseDraft(draft))}
               onChanged={refresh}
+              removedDrafts={workflow.removedDrafts ?? []}
             />
           ) : view === "reading" ? (
             <ReadingView
@@ -419,6 +457,18 @@ export function App() {
           )}
         </main>
         <UpdateProgress updates={updates} />
+        {deleting && (
+          <ConfirmDelete
+            {...draftDeleteCopy(
+              deleting,
+              data.publications.filter((item) => item.draftId === deleting.id).length,
+              workflow.preparations.some((item) => item.draftId === deleting.id),
+            )}
+            busy={busy}
+            onCancel={() => setDeleting(null)}
+            onConfirm={() => deleteDraft(deleting)}
+          />
+        )}
         {notice.text && (
           <div className="toast" role="status">
             <span>{notice.text}</span>

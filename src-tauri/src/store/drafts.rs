@@ -22,8 +22,11 @@ pub(super) fn hash_body(body: &str) -> String {
 impl WorkbenchStore {
     pub(crate) fn get_draft(&self, id: &str) -> Result<Draft, String> {
         validation::assert_id(id)?;
-        self.one("SELECT payload FROM drafts WHERE id = ?", [id])?
-            .ok_or_else(|| "这篇稿件不存在，请返回列表重新选择。".into())
+        self.one(
+            &format!("SELECT payload FROM drafts WHERE id = ? AND {}", super::removal::LIVE_DRAFT),
+            [id],
+        )?
+        .ok_or_else(|| "这篇稿件不存在或已删除，请返回列表重新选择。".into())
     }
 
     pub fn save_draft(&mut self, input: DraftInput) -> Result<Draft, String> {
@@ -77,7 +80,10 @@ impl WorkbenchStore {
             vec![]
         };
         let existing: Option<Draft> = self.one(
-            "SELECT payload FROM drafts WHERE body_hash = ?",
+            &format!(
+                "SELECT payload FROM drafts WHERE body_hash = ? AND {}",
+                super::removal::LIVE_DRAFT
+            ),
             [hash_body(text)],
         )?;
         if let Some(existing) = existing.filter(|d| d.body == text) {
@@ -149,8 +155,12 @@ impl WorkbenchStore {
         Ok(())
     }
 
+    /// Read-only history. Also works for deleted drafts kept for publication records, so a record can
+    /// still show the version that went online.
     pub fn revisions(&self, id: &str) -> Result<Vec<Revision>, String> {
-        self.get_draft(id)?;
+        validation::assert_id(id)?;
+        self.one::<Draft>("SELECT payload FROM drafts WHERE id = ?", [id])?
+            .ok_or_else(|| "这篇稿件不存在，请返回列表重新选择。".to_string())?;
         self.all(
             "SELECT payload FROM revisions WHERE draft_id = ? ORDER BY revision DESC",
             [id],

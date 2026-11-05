@@ -66,6 +66,15 @@ pub(super) fn validate_workflow(workflow: &Workflow, core: &Backup) -> Result<()
             return Err("备份中的笔记整理来源无效，未恢复。".into());
         }
     }
+    let mut removed = HashSet::new();
+    for r in &workflow.removed_drafts {
+        if !drafts.contains(r.draft_id.as_str())
+            || !removed.insert(r.draft_id.as_str())
+            || !validation::timestamp(&r.removed_at)
+        {
+            return Err("备份中的已删除稿件记录无效，未恢复。".into());
+        }
+    }
     let publications: HashMap<_, _> = core
         .publications
         .iter()
@@ -107,6 +116,14 @@ impl WorkbenchStore {
                         sources.compose_key,
                         serde_json::to_string(sources).map_err(|e| e.to_string())?
                     ],
+                )
+                .map_err(|e| e.to_string())?;
+        }
+        for removed in &workflow.removed_drafts {
+            self.connection
+                .execute(
+                    "INSERT INTO removed_drafts(draft_id, removed_at) VALUES(?, ?)",
+                    params![removed.draft_id, removed.removed_at],
                 )
                 .map_err(|e| e.to_string())?;
         }

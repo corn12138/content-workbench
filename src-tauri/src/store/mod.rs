@@ -15,6 +15,9 @@ mod prepared_images;
 mod publishing_schema;
 mod reading_schema;
 mod records;
+mod removal;
+#[cfg(test)]
+mod removal_tests;
 #[cfg(test)]
 mod tests;
 mod validation;
@@ -55,7 +58,7 @@ impl WorkbenchStore {
         let version: i64 = connection
             .query_row("PRAGMA user_version", [], |r| r.get(0))
             .map_err(|e| e.to_string())?;
-        if !matches!(version, 0 | 1 | 2 | 3 | 4 | 5) {
+        if !matches!(version, 0 | 1 | 2 | 3 | 4 | 5 | 6) {
             return Err("资料来自更新版本的应用，请升级后打开。".into());
         }
         if version == 0 {
@@ -95,19 +98,24 @@ impl WorkbenchStore {
         publishing_schema::upgrade(&connection, &directory, version)?;
         reading_schema::upgrade(&connection, &directory, version)?;
         workflow_schema::upgrade(&connection, &directory, version)?;
+        removal::upgrade(&connection, &directory, version)?;
         connection
             .execute_batch(
                 "PRAGMA foreign_keys=ON; PRAGMA busy_timeout=5000; PRAGMA journal_mode=WAL;",
             )
             .map_err(|e| e.to_string())?;
-        Ok(Self {
+        let mut store = Self {
             connection,
             directory,
-        })
+        };
+        // Deleted drafts with no publication record are erased once their undo window (this session) has ended.
+        store.purge_removed_drafts()?;
+        Ok(store)
     }
 
     pub fn snapshot(&self) -> Result<Snapshot, String> {
-        let mut drafts: Vec<Draft> = self.all("SELECT payload FROM drafts", [])?;
+        let mut drafts: Vec<Draft> =
+            self.all(&format!("SELECT payload FROM drafts WHERE {}", removal::LIVE_DRAFT), [])?;
         let mut publications: Vec<Publication> =
             self.all("SELECT payload FROM publications", [])?;
         let mut readings: Vec<Reading> = self.all("SELECT payload FROM readings", [])?;

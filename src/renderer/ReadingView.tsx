@@ -1,7 +1,10 @@
 import { useDeferredValue, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { BookOpen, ChevronDown, FileUp, Link2, Plus, Rss } from "lucide-react";
 import type { Draft, Reading, Library } from "../shared/contracts";
-import { api } from "./api";
+import { api, errorMessage } from "./api";
+import { ConfirmDelete } from "./deletion/ConfirmDelete";
+import { readingDeleteCopy } from "./deletion/deleteText";
+import { useDeleteShortcut } from "./deletion/useDeleteShortcut";
 import { useLayout } from "./layout";
 import { ReadingAddForm } from "./reading/ReadingAddForm";
 import { ReaderPane } from "./reading/ReaderPane";
@@ -210,6 +213,45 @@ export function ReadingView(props: ReadingViewProps) {
     }
   };
   const ordered = readings;
+  const [removing, setRemoving] = useState<Reading | null>(null);
+  const requestRemove = (item: Reading) => {
+    if (busy || composing) return;
+    setRemoving(item);
+  };
+  const removeReading = async (item: Reading) => {
+    if (busy) return;
+    setBusy(true);
+    const open = editor.record?.id === item.id;
+    try {
+      // Other articles' notes must be saved first; the deleted article's own pending edits are dropped.
+      if (open) await editor.flush().catch(() => {});
+      else await editor.flush();
+      await api.deleteReading(item.id);
+      setRemoving(null);
+      if (open) {
+        const following =
+          nextReading(ordered, visible, item.id, false) ??
+          visible.filter((entry) => entry.id !== item.id).at(-1) ??
+          null;
+        editor.forget(following);
+        if (!following) setPane("list");
+      }
+      setChosen((current) => {
+        const copy = new Set(current);
+        copy.delete(item.id);
+        return copy;
+      });
+      await props.onRefresh();
+      if (api.library) setLibrary(await api.library());
+      props.notify(item.note.trim() ? "已删除这篇文章和笔记。" : "已删除这篇文章。");
+    } catch (error) {
+      setRemoving(null);
+      props.notify(`未能删除：${errorMessage(error)}`);
+    } finally {
+      setBusy(false);
+    }
+  };
+  useDeleteShortcut(record && !composing && !removing ? () => requestRemove(record) : null);
   const scope = query.trim() || source || filter !== "all" ? "当前筛选结果" : "全部文章";
   const next = record ? nextReading(ordered, visible, record.id, false) : null;
   const nextUnread = record ? nextReading(ordered, visible, record.id, true) : null;
@@ -279,6 +321,7 @@ export function ReadingView(props: ReadingViewProps) {
       {api.library && (
         <FeedPanel
           library={library}
+          readings={props.items}
           onLibrary={(next) => {
             setLibrary(next);
             setLibraryLoaded(true);
@@ -315,6 +358,14 @@ export function ReadingView(props: ReadingViewProps) {
         else if (compact && notesOpen) setNotesOpen(false);
       }}
     >
+      {removing && (
+        <ConfirmDelete
+          {...readingDeleteCopy(removing, previewIndex.has(removing.id))}
+          busy={busy}
+          onCancel={() => setRemoving(null)}
+          onConfirm={() => void removeReading(removing)}
+        />
+      )}
       {/* Kept mounted while hidden so feed refreshes, search text and filters survive layout changes. */}
       <section className="list-pane reading-list" aria-label="文章列表与筛选" hidden={!showList}>
         <ReadingList
@@ -334,6 +385,7 @@ export function ReadingView(props: ReadingViewProps) {
           header={header}
           tools={tools}
           composing={composing ? chosen : null}
+          onDelete={requestRemove}
           onCompose={
             api.composeNotes && props.items.some((item) => item.note.trim())
               ? () => {
@@ -395,6 +447,7 @@ export function ReadingView(props: ReadingViewProps) {
           nextUnread={nextUnread}
           scope={scope}
           onNext={(item) => void select(item)}
+          onDelete={() => requestRemove(record)}
           restoreRatio={resume && resume.id === record.id ? resume.ratio : null}
           onPosition={(ratio) => writer.current.update({ id: record.id, ratio })}
         />

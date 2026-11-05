@@ -15,6 +15,7 @@ import {
   Send,
   TriangleAlert,
   X,
+  Trash2,
 } from "lucide-react";
 import type { Draft, Revision } from "../shared/contracts";
 import { api, errorMessage } from "./api";
@@ -29,6 +30,7 @@ interface Props {
   onSaved: (draft: Draft) => void;
   onPublish: (draft: Draft) => void;
   onArchive: (id: string) => Promise<void>;
+  onDelete?: (draft: Draft) => void;
   registerFlush: (flush: () => Promise<void>) => void;
   notify: (message: string) => void;
   onRestored: (draft: Draft) => void;
@@ -87,6 +89,7 @@ export function DraftEditor({
   onSaved,
   onPublish,
   onArchive,
+  onDelete,
   registerFlush,
   notify,
   onRestored,
@@ -320,6 +323,23 @@ export function DraftEditor({
               <Archive size={15} aria-hidden="true" />
               归档稿件
             </button>
+            {onDelete && (
+              <>
+                <span className="menu-divider" role="separator" />
+                <button
+                  type="button"
+                  role="menuitem"
+                  className="danger"
+                  onClick={() => {
+                    closeMenu();
+                    onDelete(draft);
+                  }}
+                >
+                  <Trash2 size={15} aria-hidden="true" />
+                  删除稿件…
+                </button>
+              </>
+            )}
           </div>
         </details>
         <button

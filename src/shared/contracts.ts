@@ -155,6 +155,8 @@ export interface Workflow {
   preparations: Preparation[];
   sources: DraftSources[];
   feedback: Feedback[];
+  /** Deleted drafts kept hidden because publication records still point at them. */
+  removedDrafts?: { draftId: string; removedAt: string }[];
 }
 export interface ExportReceipt {
   filename: string;
@@ -231,6 +233,11 @@ export interface WorkbenchAPI {
   clearPreparation?(draftId: string, platform: Platform): Promise<void>;
   updatePublication?(id: string, url: string): Promise<Publication>;
   removePublication?(id: string): Promise<void>;
+  /** Hides the draft; the undo toast calls restoreRemovedDraft (possible until the app restarts). */
+  removeDraft?(id: string): Promise<void>;
+  restoreRemovedDraft?(id: string): Promise<Draft>;
+  /** Deletes a subscription and its articles; articles with notes are kept unless withNotes. */
+  deleteFeed?(id: string, withNotes: boolean): Promise<void>;
   saveFeedback?(input: FeedbackInput): Promise<Feedback>;
   deleteFeedback?(id: string): Promise<void>;
   composeNotes?(ids: string[]): Promise<{ draft: Draft; duplicate: boolean }>;

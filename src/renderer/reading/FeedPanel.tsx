@@ -1,11 +1,14 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
-import { ChevronDown, Download, Plus, RefreshCw, TriangleAlert, Upload, X } from "lucide-react";
-import type { Feed, Library, OpmlEntry } from "../../shared/contracts";
+import { ChevronDown, Download, Plus, RefreshCw, Trash2, TriangleAlert, Upload, X } from "lucide-react";
+import type { Feed, Library, OpmlEntry, Reading } from "../../shared/contracts";
+import { ConfirmDelete } from "../deletion/ConfirmDelete";
+import { feedArticles, feedDeleteCopy } from "../deletion/deleteText";
 import { opmlCounts, opmlLabel } from "./opml";
 import { api, errorMessage } from "../api";
 
 interface Props {
   library: Library;
+  readings: Reading[];
   onLibrary: (library: Library) => void;
   onRefresh: () => Promise<void>;
   adding: boolean;
@@ -32,8 +35,11 @@ const timeFormat = new Intl.DateTimeFormat("zh-CN", {
   minute: "2-digit",
 });
 
-export function FeedPanel({ library, onLibrary, onRefresh, adding, setAdding, importing, setImporting }: Props) {
+export function FeedPanel({ library, readings, onLibrary, onRefresh, adding, setAdding, importing, setImporting }: Props) {
   const feeds = library.feeds.filter((feed) => feed.enabled);
+  const stopped = library.feeds.filter((feed) => !feed.enabled);
+  const [deleting, setDeleting] = useState<Feed | null>(null);
+  const [withNotes, setWithNotes] = useState(false);
   const [url, setUrl] = useState("");
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
@@ -293,13 +299,13 @@ export function FeedPanel({ library, onLibrary, onRefresh, adding, setAdding, im
           </div>
         </div>
       )}
-      {feeds.length > 0 && (
+      {library.feeds.length > 0 && (
         <div className="feed-toolbar">
           <button
             type="button"
             className="button small"
             onClick={() => refresh(feeds)}
-            disabled={busy}
+            disabled={busy || !feeds.length}
             aria-busy={busy}
           >
             <RefreshCw size={14} className={busy ? "spin" : undefined} aria-hidden="true" />
@@ -307,12 +313,12 @@ export function FeedPanel({ library, onLibrary, onRefresh, adding, setAdding, im
           </button>
           <details className="feed-management">
             <summary className="button quiet small">
-              {feeds.length} 个订阅
+              {feeds.length} 个订阅{stopped.length ? ` · ${stopped.length} 个已取消` : ""}
               <ChevronDown size={13} aria-hidden="true" />
             </summary>
             <div className="feed-sources">
               <p className="muted">
-                只在点击“更新订阅”时联网。取消订阅会保留已收录的文章和笔记。
+                只在点击“更新订阅”时联网。取消订阅会停止更新并保留文章和笔记；删除会移除订阅和它收录的文章。
               </p>
               {(api.opmlPreview || api.exportOpml) && (
                 <div className="inline-actions">
@@ -330,32 +336,51 @@ export function FeedPanel({ library, onLibrary, onRefresh, adding, setAdding, im
                   )}
                 </div>
               )}
-              {feeds.map((feed) => (
+              {[...feeds, ...stopped].map((feed) => (
                 <div className="feed-source" key={feed.id}>
                   <div>
                     <strong>{feed.title}</strong>
                     <span className="muted">{feed.url}</span>
-                    <span className={feed.error ? "field-error" : "muted"}>
-                      {feed.error ||
+                    <span className={feed.error && feed.enabled ? "field-error" : "muted"}>
+                      {!feed.enabled ? "已取消订阅，不再更新" : feed.error ||
                         (feed.checkedAt
                           ? `上次检查 ${timeFormat.format(new Date(feed.checkedAt))}`
                           : "尚未更新")}
                     </span>
                   </div>
-                  <button
-                    type="button"
-                    className="button quiet small"
-                    disabled={busy}
-                    onClick={() =>
-                      void run(async () => {
-                        await api.unsubscribe!(feed.id);
-                        setFailed((items) => items.filter((item) => item.id !== feed.id));
-                        return "已取消订阅，文章和笔记已保留。";
-                      })
-                    }
-                  >
-                    取消订阅
-                  </button>
+                  <span className="inline-actions">
+                    {feed.enabled && (
+                      <button
+                        type="button"
+                        className="button quiet small"
+                        disabled={busy}
+                        onClick={() =>
+                          void run(async () => {
+                            await api.unsubscribe!(feed.id);
+                            setFailed((items) => items.filter((item) => item.id !== feed.id));
+                            return "已取消订阅，文章和笔记已保留。";
+                          })
+                        }
+                      >
+                        取消订阅
+                      </button>
+                    )}
+                    {api.deleteFeed && (
+                      <button
+                        type="button"
+                        className="button quiet small"
+                        disabled={busy}
+                        aria-label={`删除订阅：${feed.title}`}
+                        onClick={() => {
+                          setWithNotes(false);
+                          setDeleting(feed);
+                        }}
+                      >
+                        <Trash2 size={13} aria-hidden="true" />
+                        删除…
+                      </button>
+                    )}
+                  </span>
                 </div>
               ))}
             </div>
@@ -415,6 +440,37 @@ export function FeedPanel({ library, onLibrary, onRefresh, adding, setAdding, im
           </button>
         </p>
       )}
+      {deleting && (() => {
+        const counts = feedArticles(library, readings, deleting.id);
+        return (
+          <ConfirmDelete
+            {...feedDeleteCopy(deleting.title, counts.articles, counts.noted, withNotes)}
+            busy={busy}
+            onCancel={() => setDeleting(null)}
+            onConfirm={() => {
+              const target = deleting;
+              void run(async () => {
+                await api.deleteFeed!(target.id, withNotes);
+                setFailed((items) => items.filter((item) => item.id !== target.id));
+                setDeleting(null);
+                return withNotes || !counts.noted
+                  ? "已删除订阅和它收录的文章。"
+                  : `已删除订阅，保留了 ${counts.noted} 篇写过笔记的文章。`;
+              }, (message) => {
+                setDeleting(null);
+                setMessage(`未能删除：${message}`);
+              });
+            }}
+          >
+            {counts.noted > 0 && (
+              <label className="confirm-option">
+                <input type="checkbox" checked={withNotes} disabled={busy} onChange={(e) => setWithNotes(e.target.checked)} />
+                <span>同时删除写过笔记的 {counts.noted} 篇文章和笔记</span>
+              </label>
+            )}
+          </ConfirmDelete>
+        );
+      })()}
     </div>
   );
 }

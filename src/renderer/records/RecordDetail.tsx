@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { CircleAlert, ExternalLink, FileText, History, PenLine, RefreshCw, Trash2 } from "lucide-react";
+import { ExternalLink, FileText, History, PenLine, RefreshCw, Trash2 } from "lucide-react";
 import type { Draft, Feedback, Publication, Revision } from "../../shared/contracts";
 import { api, errorMessage } from "../api";
 import { Markdown } from "../Markdown";
@@ -31,10 +31,15 @@ export function RecordDetail({
   feedback,
   onOpenDraft,
   onChanged,
+  onRemove,
+  removed,
   notify,
 }: {
   publication: Publication;
   draft: Draft | undefined;
+  /** The draft was deleted but is kept hidden for this record. */
+  removed: boolean;
+  onRemove?: () => void;
   feedback: Feedback[];
   onOpenDraft: (draft: Draft) => void;
   onChanged: () => Promise<void>;
@@ -44,7 +49,6 @@ export function RecordDetail({
   const [revisionError, setRevisionError] = useState("");
   const [editing, setEditing] = useState(false);
   const [url, setURL] = useState(publication.url);
-  const [confirmRemove, setConfirmRemove] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [recording, setRecording] = useState(false);
@@ -64,7 +68,6 @@ export function RecordDetail({
     setRevision(undefined);
     setRevisionError("");
     setEditing(false);
-    setConfirmRemove(false);
     setURL(publication.url);
     setError("");
     setSyncError("");
@@ -102,13 +105,6 @@ export function RecordDetail({
       setEditing(false);
       await onChanged();
       notify("链接已更正。只更新了本地记录，线上作品没有变化。");
-    });
-
-  const remove = () =>
-    void task(async () => {
-      await api.removePublication!(publication.id);
-      await onChanged();
-      notify("已移除这条本地记录。线上作品不受影响。");
     });
 
   const saveFeedback = () =>
@@ -151,7 +147,7 @@ export function RecordDetail({
     <div className="record-detail" role="region" aria-label={`作品详情：${publication.title || "未命名稿件"}`}>
       <section className="record-detail-section">
         <h3>本地稿件</h3>
-        <p className="field-help">{versionStatus(publication, draft)}</p>
+        <p className="field-help">{versionStatus(publication, draft, removed)}</p>
         <div className="inline-actions">
           {draft && (
             <button type="button" className="button small" disabled={busy} onClick={() => onOpenDraft(draft)}>
@@ -159,7 +155,7 @@ export function RecordDetail({
               打开稿件
             </button>
           )}
-          {draft && (
+          {(draft || removed) && (
             <button type="button" className="button quiet small" disabled={busy} onClick={showRevision}>
               <History size={13} aria-hidden="true" />
               查看发布时的版本
@@ -217,23 +213,6 @@ export function RecordDetail({
               </button>
             </div>
           </div>
-        ) : confirmRemove ? (
-          <div className="notice warning" role="alert">
-            <CircleAlert size={15} aria-hidden="true" />
-            <div className="notice-body">
-              <p>
-                只删除这条本地记录{feedback.length ? `和 ${feedback.length} 条反馈记录` : ""}，不会删除线上作品，也不会改动稿件。
-              </p>
-              <div className="notice-actions">
-                <button type="button" className="button" disabled={busy} onClick={remove}>
-                  确认移除
-                </button>
-                <button type="button" className="button quiet" disabled={busy} onClick={() => setConfirmRemove(false)}>
-                  取消
-                </button>
-              </div>
-            </div>
-          </div>
         ) : (
           <div className="inline-actions">
             {manual && api.updatePublication && (
@@ -242,10 +221,10 @@ export function RecordDetail({
                 更正链接
               </button>
             )}
-            {api.removePublication && (
-              <button type="button" className="button quiet small" disabled={busy} onClick={() => setConfirmRemove(true)}>
+            {onRemove && (
+              <button type="button" className="button quiet small" disabled={busy} onClick={onRemove}>
                 <Trash2 size={13} aria-hidden="true" />
-                移除本地记录
+                移除本地记录…
               </button>
             )}
           </div>

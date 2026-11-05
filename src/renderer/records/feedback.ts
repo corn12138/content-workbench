@@ -61,7 +61,12 @@ export const feedbackFor = (feedback: Feedback[], publicationId: string) =>
     .sort((a, b) => b.observedAt.localeCompare(a.observedAt) || b.createdAt.localeCompare(a.createdAt));
 
 /** How the published revision relates to the local draft now. */
-export function versionStatus(publication: Publication, draft: { revision: number; archived: boolean } | undefined) {
+export function versionStatus(
+  publication: Publication,
+  draft: { revision: number; archived: boolean } | undefined,
+  removed = false,
+) {
+  if (removed) return `原稿已删除。发布时的版本 ${publication.draftRevision} 随这条记录保留，可以查看。`;
   if (!draft) return "本地稿件已不存在，链接与发布时标题仍保留。";
   const base = `发布时为版本 ${publication.draftRevision}`;
   const changed =
