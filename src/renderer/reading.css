@@ -433,3 +433,26 @@
 .note-source svg {
   margin-top: 3px;
 }
+
+/* Reader-only table polish. The draft preview keeps article-theme.css, which mirrors Juejin. */
+.reader-content .markdown .md-table-scroll {
+  margin: 1.2em 0;
+}
+.reader-content .markdown table {
+  display: table;
+  border: 0;
+  border-collapse: collapse;
+  border-spacing: 0;
+  font-size: 13px;
+}
+.reader-content .markdown :is(th, td) {
+  border: 1px solid var(--cw-border);
+  padding: 8px 12px;
+  min-width: 80px;
+  text-align: left;
+  vertical-align: top;
+}
+.reader-content .markdown thead,
+.reader-content .markdown th {
+  background: var(--cw-surface-sunken);
+}

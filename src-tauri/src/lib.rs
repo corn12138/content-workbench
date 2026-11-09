@@ -75,6 +75,8 @@ pub fn run() {
             updates::open_update_backups,
             commands::save_draft,
             commands::archive_draft,
+            commands::remove_draft,
+            commands::restore_removed_draft,
             commands::revisions,
             commands::restore_revision,
             commands::record_publication,
@@ -96,6 +98,7 @@ pub fn run() {
             feed_commands::add_feed,
             feed_commands::refresh_feed,
             feed_commands::unsubscribe,
+            feed_commands::delete_feed,
             lifecycle::finish_close,
             #[cfg(debug_assertions)]
             smoke::comparison_step

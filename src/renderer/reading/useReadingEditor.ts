@@ -123,5 +123,17 @@ export function useReadingEditor(options: EditorOptions) {
     setSaveError("");
   };
 
-  return { record, saveState, saveError, edit, flush, selectSaved };
+  // After the open article was deleted: drop its pending edits and show the next article (or none).
+  const forget = (next: Reading | null) => {
+    if (timer.current) clearTimeout(timer.current);
+    timer.current = null;
+    dirty.current = false;
+    generation.current += 1;
+    current.current = next;
+    setRecord(next);
+    setSaveState("saved");
+    setSaveError("");
+  };
+
+  return { record, saveState, saveError, edit, flush, selectSaved, forget };
 }

@@ -27,3 +27,31 @@ export function shortcutFor(
 
 export const shortcutLabel = (platform: string, key: string) =>
   /mac|iphone|ipad/i.test(platform) ? `⌘${key}` : `Ctrl+${key}`;
+
+/** True while the user is typing somewhere, where ⌘⌫ / Delete must keep editing text. */
+export function isEditableTarget(target: EventTarget | null) {
+  if (typeof HTMLElement === "undefined" || !(target instanceof HTMLElement)) return false;
+  return (
+    target.isContentEditable ||
+    target instanceof HTMLTextAreaElement ||
+    target instanceof HTMLSelectElement ||
+    (target instanceof HTMLInputElement && !["button", "checkbox", "radio", "submit", "reset"].includes(target.type))
+  );
+}
+
+/**
+ * Delete key for the selected item: ⌘⌫ on macOS, Delete elsewhere. The caller must also check
+ * `isEditableTarget`, because both keys edit text in fields.
+ */
+export function isDeleteShortcut(
+  event: Pick<KeyboardEvent, "key" | "metaKey" | "ctrlKey" | "altKey" | "shiftKey" | "isComposing" | "keyCode" | "repeat">,
+  platform: string,
+) {
+  if (event.isComposing || event.keyCode === 229 || event.repeat || event.altKey || event.shiftKey || event.ctrlKey) return false;
+  return /mac|iphone|ipad/i.test(platform)
+    ? event.metaKey && event.key === "Backspace"
+    : !event.metaKey && event.key === "Delete";
+}
+
+export const deleteShortcutLabel = (platform: string) =>
+  /mac|iphone|ipad/i.test(platform) ? "⌘⌫" : "Delete";

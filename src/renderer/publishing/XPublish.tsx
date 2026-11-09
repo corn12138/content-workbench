@@ -5,13 +5,12 @@ import { api, errorMessage } from "../api";
 import { XConnection } from "./XConnection";
 import { checkXText, sensitiveText } from "./text";
 import { RecordLink } from "./RecordLink";
-import { XTextField } from "./XTextField";
+import { XTextStatus } from "./XTextField";
 import { canSend, initialXPublishState, textLocked, xPublishReducer } from "./xOutcome";
 
 export function XPublish({
   draft,
   text,
-  setText,
   onAccount,
   onRecorded,
   onBusy,
@@ -19,10 +18,11 @@ export function XPublish({
   notify,
   locked: stale = false,
   onPublished,
+  onTextLocked,
 }: {
   draft: Draft;
+  /** The post, edited in the main area. */
   text: string;
-  setText: (text: string) => void;
   onAccount: (account: XAccount | null) => void;
   onRecorded: () => Promise<void>;
   onBusy: (busy: boolean) => void;
@@ -32,6 +32,8 @@ export function XPublish({
   locked?: boolean;
   /** Called after X returned a receipt, so the finished preparation can be cleared. */
   onPublished?: () => void;
+  /** Tells the main-area editor when the post must not change (publishing, receipt, unknown result). */
+  onTextLocked?: (locked: boolean) => void;
 }) {
   const [account, setAccount] = useState<XAccount | null>(null);
   const [acknowledged, setAcknowledged] = useState(false);
@@ -49,6 +51,18 @@ export function XPublish({
   const canPublish =
     !!account?.connected && !stale && check.valid && (!sensitive || acknowledged) && canSend(outcome);
 
+  const shown = useRef(text);
+  useEffect(() => {
+    if (shown.current === text) return;
+    shown.current = text;
+    setAcknowledged(false);
+    dispatch({ type: "edited" });
+  }, [text]);
+  const frozen = textLocked(outcome);
+  useEffect(() => {
+    onTextLocked?.(frozen);
+  }, [frozen, onTextLocked]);
+  useEffect(() => () => onTextLocked?.(false), [onTextLocked]);
   useEffect(() => {
     if (confirming) dialog.current?.showModal();
     else if (dialog.current?.open) dialog.current.close();
@@ -111,16 +125,7 @@ export function XPublish({
       />
       {account?.connected && (
         <>
-          <XTextField
-            text={text}
-            readOnly={textLocked(outcome)}
-            setText={(value) => {
-              setText(value);
-              setAcknowledged(false);
-              dispatch({ type: "edited" });
-            }}
-            help="长文默认只带入标题，请补充简介或文章链接。仅发布上方文字，不自动拆分或上传图片，也不改变原稿。"
-          />
+          <XTextStatus text={text} readOnly={frozen} />
           {sensitive && (
             <label className="notice warning check">
               <input

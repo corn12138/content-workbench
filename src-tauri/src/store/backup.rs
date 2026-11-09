@@ -11,9 +11,14 @@ use uuid::Uuid;
 impl WorkbenchStore {
     pub fn export_backup(&self) -> Result<String, String> {
         let snapshot = self.snapshot()?;
+        let kept = super::removal::KEPT_DRAFT;
+        // Published drafts that were deleted stay in backups (hidden) so their records remain complete.
+        let mut drafts: Vec<super::models::Draft> =
+            self.all(&format!("SELECT payload FROM drafts WHERE {kept}"), [])?;
+        drafts.sort_by(|a, b| b.updated_at.cmp(&a.updated_at));
         let mut statement = self
             .connection
-            .prepare("SELECT draft_id, payload FROM revisions ORDER BY draft_id, revision")
+            .prepare(&format!("SELECT draft_id, payload FROM revisions WHERE draft_id IN (SELECT id FROM drafts WHERE {kept}) ORDER BY draft_id, revision"))
             .map_err(|e| e.to_string())?;
         let rows = statement
             .query_map([], |r| Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?)))
@@ -30,7 +35,7 @@ impl WorkbenchStore {
             format: "content-workbench".into(),
             version: 1,
             exported_at: validation::now(),
-            drafts: snapshot.drafts,
+            drafts,
             revisions,
             publications: snapshot.publications,
             readings: snapshot.readings,
@@ -70,7 +75,7 @@ impl WorkbenchStore {
     }
 
     pub(super) fn replace_contents(&mut self, backup: Backup) -> Result<(), String> {
-        self.connection.execute_batch("DELETE FROM publications; DELETE FROM revisions; DELETE FROM drafts; DELETE FROM readings;").map_err(|e| e.to_string())?;
+        self.connection.execute_batch("DELETE FROM removed_drafts; DELETE FROM publications; DELETE FROM revisions; DELETE FROM drafts; DELETE FROM readings;").map_err(|e| e.to_string())?;
         for draft in backup.drafts {
             self.connection
                 .execute(

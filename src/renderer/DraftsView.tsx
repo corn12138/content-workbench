@@ -1,7 +1,9 @@
 import type { ReactNode } from "react";
-import { Archive, FileText, FileUp, HardDrive, Plus, Search } from "lucide-react";
+import { Archive, ArchiveRestore, FileText, FileUp, HardDrive, Plus, Search, Trash2 } from "lucide-react";
 import type { Draft, Publication } from "../shared/contracts";
 import { excerpt, updatedLabel } from "./draftText";
+import { useContextMenu } from "./deletion/ContextMenu";
+import { deleteShortcutLabel } from "./shortcuts";
 
 interface Props {
   drafts: Draft[];
@@ -18,6 +20,8 @@ interface Props {
   onCreate: () => void;
   onImport: () => void;
   onUnarchive: (draft: Draft) => void;
+  onArchive: (draft: Draft) => void;
+  onDelete?: (draft: Draft) => void;
   children: ReactNode;
 }
 
@@ -37,8 +41,11 @@ export function DraftsView({
   onCreate,
   onImport,
   onUnarchive,
+  onArchive,
+  onDelete,
   children,
 }: Props) {
+  const context = useContextMenu();
   const visible = drafts
     .filter(
       (item) =>
@@ -86,6 +93,7 @@ export function DraftsView({
 
   return (
     <div className="drafts-view panes">
+      {context.menu}
       {!listHidden && (
         <section className="list-pane" aria-label="稿件列表">
           <div className="list-head">
@@ -142,6 +150,17 @@ export function DraftsView({
                     disabled={busy}
                     aria-current={draft.id === active?.id ? "true" : undefined}
                     onClick={() => onSelect(draft)}
+                    onContextMenu={(event) =>
+                      context.show(event, [
+                        draft.archived
+                          ? { label: "恢复到稿件", icon: <ArchiveRestore size={15} aria-hidden="true" />, run: () => onUnarchive(draft) }
+                          : { label: "归档稿件", icon: <Archive size={15} aria-hidden="true" />, run: () => onArchive(draft) },
+                        ...(onDelete
+                          ? [{ label: "删除稿件…", icon: <Trash2 size={15} aria-hidden="true" />, danger: true, run: () => onDelete(draft) }]
+                          : []),
+                      ])
+                    }
+                    title={onDelete ? `右键可归档或删除；选中后按 ${deleteShortcutLabel(navigator.platform)} 删除` : undefined}
                   >
                     <span className={draft.title ? "row-title" : "row-title untitled"}>
                       {draft.title || "未命名稿件"}
@@ -184,6 +203,12 @@ export function DraftsView({
             <button type="button" className="button primary" disabled={busy} onClick={() => onUnarchive(active)}>
               恢复到稿件
             </button>
+            {onDelete && (
+              <button type="button" className="button quiet" disabled={busy} onClick={() => onDelete(active)}>
+                <Trash2 size={14} aria-hidden="true" />
+                删除稿件…
+              </button>
+            )}
           </div>
         </div>
       ) : (

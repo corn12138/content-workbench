@@ -46,3 +46,20 @@ export function XTextField({
     </>
   );
 }
+
+/** Compact status for the rail while the post itself is edited in the main area. */
+export function XTextStatus({ text, readOnly }: { text: string; readOnly?: boolean }) {
+  const check = checkXText(text);
+  const over = check.length > 280;
+  return (
+    <p className={over || check.localAsset || !text.trim() ? "x-text-status field-error" : "x-text-status field-help"}>
+      {!text.trim()
+        ? "短帖为空，请在左侧填写。"
+        : check.localAsset
+          ? "请在左侧移除本机图片和文件路径。"
+          : over
+            ? `已超出 ${check.length - 280} 字，请在左侧删减。`
+            : `${readOnly ? "短帖已锁定" : "在左侧修改短帖"} · ${check.length} / 280`}
+    </p>
+  );
+}

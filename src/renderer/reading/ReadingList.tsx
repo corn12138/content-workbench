@@ -1,5 +1,6 @@
 import { useMemo, type ReactNode } from "react";
-import { Check, FilePlus2, NotebookPen, Search } from "lucide-react";
+import { Check, FilePlus2, NotebookPen, Search, Trash2 } from "lucide-react";
+import { useContextMenu } from "../deletion/ContextMenu";
 import type { Reading, Library } from "../../shared/contracts";
 import { readingIndex, type ReadingFilter } from "./filterReadings";
 import { groupReadings, publishedDates, readingDate } from "./orderReadings";
@@ -26,6 +27,7 @@ interface ReadingListProps {
   /** Selected ids while choosing notes to compose; null when not composing. */
   composing?: Set<string> | null;
   onCompose?: () => void;
+  onDelete?: (item: Reading) => void;
 }
 
 const timeFormat = new Intl.DateTimeFormat("zh-CN", {
@@ -55,7 +57,9 @@ export function ReadingList({
   header,
   composing,
   onCompose,
+  onDelete,
 }: ReadingListProps) {
+  const context = useContextMenu();
   const content = useMemo(() => readingIndex(library.items), [library.items]);
   const feedTitles = useMemo(
     () => new Map(library.feeds.map((feed) => [feed.id, feed.title])),
@@ -75,6 +79,7 @@ export function ReadingList({
 
   return (
     <>
+      {context.menu}
       <div className="list-head">
         {header}
         {tools}
@@ -165,6 +170,18 @@ export function ReadingList({
                   className={`list-item reading-item${!composing && selectedId === item.id ? " active" : ""}${chosen ? " active" : ""}${item.read ? " read" : ""}`}
                   key={item.id}
                   onClick={() => void select(item)}
+                  onContextMenu={(event) => {
+                    if (!onDelete || composing) return;
+                    context.show(event, [
+                      {
+                        label: item.note.trim() ? "删除文章和笔记…" : "删除文章…",
+                        icon: <Trash2 size={15} aria-hidden="true" />,
+                        danger: true,
+                        disabled: busy,
+                        run: () => onDelete(item),
+                      },
+                    ]);
+                  }}
                   disabled={busy || (!!composing && !hasNote)}
                   aria-current={!composing && selectedId === item.id ? "true" : undefined}
                   aria-pressed={composing ? chosen : undefined}

@@ -105,6 +105,17 @@ pub struct Workflow {
     pub sources: Vec<DraftSources>,
     #[serde(default)]
     pub feedback: Vec<Feedback>,
+    /// Deleted drafts kept only because publication records point at them. Omitted when empty so
+    /// backups without deletions stay readable by 0.5.0.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub removed_drafts: Vec<RemovedDraft>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct RemovedDraft {
+    pub draft_id: String,
+    pub removed_at: String,
 }
 
 pub fn metric_names(platform: &str) -> &'static [&'static str] {

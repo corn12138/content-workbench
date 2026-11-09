@@ -120,3 +120,35 @@ fn structured_feeds_preserve_html_text_kind_and_bound_large_bodies() {
     assert!(content.truncated);
     assert_eq!(content.value.chars().count(), 100_000);
 }
+
+#[test]
+fn full_articles_in_rss_description_are_body_but_short_summaries_stay_summaries() {
+    use crate::store::feed_models::ContentKind;
+    let item = |link: &str, description: &str| {
+        format!(r#"<item><title>T</title><link>https://example.com/{link}</link><description><![CDATA[{description}]]></description></item>"#)
+    };
+    let xml = format!(
+        r#"<rss version="2.0"><channel><title>Feed</title><link>https://example.com</link><description>x</description>{}{}{}{}{}</channel></rss>"#,
+        item("structured", "<h2>为什么</h2><p>一段。</p><pre><code>BEGIN;</code></pre>"),
+        item("paragraphs", "<p>一</p><p>二</p><p>三</p>"),
+        item("long", &format!("<p>{}</p>", "字".repeat(600))),
+        item("short", "<p>一句话摘要，<a href=\"https://example.com\">阅读全文</a></p>"),
+        item("plain", "只有摘要的纯文字。"),
+    );
+    let parsed = parse(xml.as_bytes(), &Url::parse("https://example.com/feed").unwrap()).unwrap();
+    let kinds: Vec<_> = parsed
+        .items
+        .iter()
+        .map(|i| i.content.as_ref().unwrap().kind.clone())
+        .collect();
+    assert_eq!(
+        kinds,
+        vec![
+            ContentKind::Body,
+            ContentKind::Body,
+            ContentKind::Body,
+            ContentKind::Summary,
+            ContentKind::Summary
+        ]
+    );
+}

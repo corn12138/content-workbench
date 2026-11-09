@@ -8,13 +8,16 @@ const fallbackCallback = "http://127.0.0.1:34187/oauth/x/callback";
 export function XConnection({
   onAccount,
   onBusy,
+  setupInitiallyOpen = true,
 }: {
   onAccount?: (account: XAccount | null) => void;
   onBusy?: (busy: boolean) => void;
+  /** Settings keeps the advanced setup closed; the API publishing tab opens it. */
+  setupInitiallyOpen?: boolean;
 }) {
   const [account, setAccount] = useState<XAccount | null>(null);
   const [clientId, setClientId] = useState("");
-  const [setupOpen, setSetupOpen] = useState(true);
+  const [setupOpen, setSetupOpen] = useState(setupInitiallyOpen);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [authorizing, setAuthorizing] = useState(false);

@@ -7,6 +7,7 @@ import {
   NotebookPen,
   PanelLeftOpen,
   Rss,
+  Trash2,
   TriangleAlert,
 } from "lucide-react";
 import type { FeedItem, Reading } from "../../shared/contracts";
@@ -38,6 +39,7 @@ interface Props {
   /** Stored scroll ratio to restore for this article, if any. */
   restoreRatio: number | null;
   onPosition: (ratio: number) => void;
+  onDelete?: () => void;
 }
 
 const dateFormat = new Intl.DateTimeFormat("zh-CN", {
@@ -66,6 +68,7 @@ export function ReaderPane({
   onNext,
   restoreRatio,
   onPosition,
+  onDelete,
 }: Props) {
   const scroller = useRef<HTMLDivElement>(null);
   const state = contentState(feedItem);
@@ -130,6 +133,18 @@ export function ReaderPane({
           <NotebookPen size={14} aria-hidden="true" />
           {noteLabel}
         </button>
+        {onDelete && (
+          <button
+            type="button"
+            className="icon-button"
+            disabled={busy}
+            aria-label={record.note.trim() ? "删除这篇文章和笔记" : "删除这篇文章"}
+            title="删除文章"
+            onClick={onDelete}
+          >
+            <Trash2 size={15} aria-hidden="true" />
+          </button>
+        )}
       </div>
       {/* One scroll container for the whole article; wide code and tables scroll inside their own regions. */}
       <div

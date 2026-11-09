@@ -6,6 +6,7 @@ import { XPublish } from "./publishing/XPublish";
 import { sensitiveText } from "./publishing/text";
 import { isStale, usePreparation } from "./publishing/usePreparation";
 import { XWebAssist } from "./publishing/XWebAssist";
+import { XTextField } from "./publishing/XTextField";
 import { prepareJuejin } from "./publishing/juejin";
 import { JuejinImages, type ImageState } from "./publishing/JuejinImages";
 import { RecordLink } from "./publishing/RecordLink";
@@ -50,6 +51,8 @@ export function PublishWorkspace({
   const [images, setImages] = useState<ImageState>("idle");
   const xText = preparation.local.x.xText;
   const setXText = (value: string) => preparation.update("x", { xText: value });
+  // Set by the API path while the post must not change; the web path never locks the text.
+  const [xTextLocked, setXTextLocked] = useState(false);
   const [xAccount, setXAccount] = useState<XAccount | null | undefined>(undefined);
   const sensitive = sensitiveText(`${draft.title}\n${draft.body}`);
   const [acknowledged, setAcknowledged] = useState(false);
@@ -132,7 +135,7 @@ export function PublishWorkspace({
               <Eye size={13} aria-hidden="true" />
               {platform === "juejin"
                 ? `将复制到掘金的内容${prepared.adjusted ? ` · 已适配 ${prepared.adjusted} 处目录链接` : ""} · 本地排版预览，最终效果以掘金发布页为准`
-                : "将发送到 X 的短帖 · 只发送这段文字，不拆分、不上传图片，原稿不变"}
+                : "将发送到 X 的短帖，可以直接在这里修改"}
             </p>
             {platform === "juejin" ? (
               <>
@@ -141,8 +144,22 @@ export function PublishWorkspace({
               </>
             ) : (
               <>
-                <div className="post-card">{xText.trim() || "（短帖内容为空）"}</div>
-                <p className="field-help">原稿《{title}》保持不变，可随时返回编辑。</p>
+                <XTextField
+                  text={xText}
+                  setText={setXText}
+                  readOnly={xMode === "api" && xTextLocked}
+                  help={
+                    xMode === "api"
+                      ? "长文默认只带入标题，请补充简介或文章链接。仅发布这段文字，不自动拆分或上传图片，也不改变原稿。"
+                      : "长文默认只带入标题，可补充简介或文章链接。只复制这段文字，不拆分、不带图片，原稿不变。"
+                  }
+                />
+                <section className="x-source" aria-labelledby="x-source-title">
+                  <h2 id="x-source-title" className="x-source-title">
+                    原稿《{title}》<span>只读，供压缩时参考；改动请返回编辑</span>
+                  </h2>
+                  {draft.body.trim() ? <Markdown text={draft.body} /> : <p className="field-help">原稿还没有正文。</p>}
+                </section>
               </>
             )}
           </div>
@@ -370,7 +387,6 @@ export function PublishWorkspace({
                 <XWebAssist
                   draft={draft}
                   text={xText}
-                  setText={setXText}
                   locked={stale}
                   busy={busy}
                   onBusy={setBusy}
@@ -383,7 +399,7 @@ export function PublishWorkspace({
                 <XPublish
                   draft={draft}
                   text={xText}
-                  setText={setXText}
+                  onTextLocked={setXTextLocked}
                   locked={stale}
                   onAccount={(next) => setXAccount(next)}
                   onRecorded={onRecorded}

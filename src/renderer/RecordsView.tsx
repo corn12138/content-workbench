@@ -1,9 +1,13 @@
 import { useState } from "react";
-import { ChevronDown, CircleCheckBig, CircleHelp, ExternalLink, Info, PenLine, Search, Send } from "lucide-react";
+import { ChevronDown, CircleCheckBig, CircleHelp, ExternalLink, Info, PenLine, Search, Send, Trash2 } from "lucide-react";
 import type { Draft, Feedback, Publication } from "../shared/contracts";
 import { RecordDetail } from "./records/RecordDetail";
 import { feedbackFor, searchPublications } from "./records/feedback";
 import { api, errorMessage } from "./api";
+import { ConfirmDelete } from "./deletion/ConfirmDelete";
+import { useContextMenu } from "./deletion/ContextMenu";
+import { recordDeleteCopy } from "./deletion/deleteText";
+import { useDeleteShortcut } from "./deletion/useDeleteShortcut";
 
 const platformName = { juejin: "掘金", x: "X" } as const;
 const timeFormat = new Intl.DateTimeFormat("zh-CN", {
@@ -26,7 +30,9 @@ export function RecordsView({
   onDrafts,
   onOpenDraft,
   onChanged,
+  removedDrafts,
 }: {
+  removedDrafts: { draftId: string }[];
   publications: Publication[];
   drafts: Draft[];
   feedback: Feedback[];
@@ -39,8 +45,38 @@ export function RecordsView({
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState<string | null>(null);
   const visible = searchPublications(publications, platform, query);
+  const [removing, setRemoving] = useState<Publication | null>(null);
+  const [removeBusy, setRemoveBusy] = useState(false);
+  const context = useContextMenu();
+  const canRemove = !!api.removePublication;
+  const opened = publications.find((item) => item.id === open);
+  useDeleteShortcut(canRemove && opened ? () => setRemoving(opened) : null);
+  const remove = async (item: Publication) => {
+    setRemoveBusy(true);
+    try {
+      await api.removePublication!(item.id);
+      setRemoving(null);
+      if (open === item.id) setOpen(null);
+      await onChanged();
+      notify("已移除这条本地记录。线上作品不受影响。");
+    } catch (error) {
+      setRemoving(null);
+      notify(`未能移除：${errorMessage(error)}`);
+    } finally {
+      setRemoveBusy(false);
+    }
+  };
   return (
     <section className="page records-page" aria-labelledby="records-title">
+      {context.menu}
+      {removing && (
+        <ConfirmDelete
+          {...recordDeleteCopy(removing.title, feedbackFor(feedback, removing.id).length)}
+          busy={removeBusy}
+          onCancel={() => setRemoving(null)}
+          onConfirm={() => void remove(removing)}
+        />
+      )}
       <div className="page-inner">
         <header className="page-heading" data-tauri-drag-region>
           <div>
@@ -127,7 +163,21 @@ export function RecordsView({
             <ul className="record-list" aria-label="已记录的作品">
               {visible.map((item) => (
                 <li className={`record-item${open === item.id ? " open" : ""}`} key={item.id}>
-                <div className="record-row">
+                <div
+                  className="record-row"
+                  onContextMenu={(event) =>
+                    context.show(event, [
+                      {
+                        label: "打开作品",
+                        icon: <ExternalLink size={15} aria-hidden="true" />,
+                        run: () => void api.openExternal(item.url).catch((e) => notify(errorMessage(e))),
+                      },
+                      ...(canRemove
+                        ? [{ label: "移除本地记录…", icon: <Trash2 size={15} aria-hidden="true" />, danger: true, run: () => setRemoving(item) }]
+                        : []),
+                    ])
+                  }
+                >
                   <div className="record-main">
                     <h2>{item.title || "未命名稿件"}</h2>
                     <p>{item.url}</p>
@@ -175,6 +225,8 @@ export function RecordsView({
                     feedback={feedbackFor(feedback, item.id)}
                     onOpenDraft={onOpenDraft}
                     onChanged={onChanged}
+                    removed={removedDrafts.some((entry) => entry.draftId === item.draftId)}
+                    onRemove={canRemove ? () => setRemoving(item) : undefined}
                     notify={notify}
                   />
                 )}

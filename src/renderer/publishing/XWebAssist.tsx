@@ -1,9 +1,9 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Check, Copy, ExternalLink, Info, TriangleAlert } from "lucide-react";
 import type { Draft } from "../../shared/contracts";
 import { api, errorMessage } from "../api";
 import { RecordLink } from "./RecordLink";
-import { XTextField } from "./XTextField";
+import { XTextStatus } from "./XTextField";
 import { checkXText, sensitiveText } from "./text";
 import { X_INTENT, xIntentURL } from "./xWeb";
 
@@ -15,7 +15,6 @@ import { X_INTENT, xIntentURL } from "./xWeb";
 export function XWebAssist({
   draft,
   text,
-  setText,
   locked,
   busy,
   onBusy,
@@ -25,8 +24,8 @@ export function XWebAssist({
   onViewRecords,
 }: {
   draft: Draft;
+  /** The post, edited in the main area; any change resets the copy and sensitive-content checks. */
   text: string;
-  setText: (text: string) => void;
   /** True while the preparation must be re-checked against the current draft. */
   locked: boolean;
   busy: boolean;
@@ -44,6 +43,13 @@ export function XWebAssist({
   const sensitive = sensitiveText(text);
   const ready = check.valid && !!text.trim() && (!sensitive || acknowledged) && !locked;
   const prefill = xIntentURL(text);
+  const shown = useRef(text);
+  useEffect(() => {
+    if (shown.current === text) return;
+    shown.current = text;
+    setAcknowledged(false);
+    setCopied(false);
+  }, [text]);
 
   const open = async (url: string) => {
     setOpenError("");
@@ -74,15 +80,7 @@ export function XWebAssist({
         <span className="step-number" aria-hidden="true">1</span>
         <div className="publish-step-main">
           <h2>检查短帖</h2>
-          <XTextField
-            text={text}
-            setText={(value) => {
-              setText(value);
-              setAcknowledged(false);
-              setCopied(false);
-            }}
-            help="长文默认只带入标题，可补充简介或文章链接。只复制这段文字，不拆分、不带图片，原稿不变。"
-          />
+          <XTextStatus text={text} />
           {sensitive && (
             <label className="notice warning check">
               <input

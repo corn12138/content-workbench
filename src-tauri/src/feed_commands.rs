@@ -23,6 +23,17 @@ pub fn unsubscribe(
 }
 
 #[tauri::command]
+pub fn delete_feed(
+    window: WebviewWindow,
+    state: State<AppState>,
+    id: String,
+    with_notes: bool,
+) -> Result<(), String> {
+    trusted(&window)?;
+    state.lock()?.delete_feed(&id, with_notes)
+}
+
+#[tauri::command]
 pub async fn add_feed(window: WebviewWindow, app: AppHandle, url: String) -> Result<Feed, String> {
     trusted(&window)?;
     let url = feed_fetch::feed_url(&url)?.to_string();
